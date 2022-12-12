@@ -71,7 +71,7 @@ freely, subject to the following restrictions:
 
 
 =============================================================================
-- stb_image, stb_image_write, stb_truetype, stb_rect_pack: 
+- stb_truetype: 
   https://github.com/nothings/stb/
 =============================================================================
 This is free and unencumbered software released into the public domain.
