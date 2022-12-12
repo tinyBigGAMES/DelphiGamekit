@@ -59,7 +59,7 @@ Thank you very much for any support you can provide, I will be most grateful. :c
 ## How to use in Delphi
 - Unzip the archive to a desired location.
 - Add `installdir\sources`, folder to Delphi's library path so the library source files can be found for any project or for a specific project add to its search path.
-- Use `DGTools` utility for making archive files (compressed, encrypted custom format), converting video/audio to a compatible format. Running the `dgt_arc.bat` in `installdir\bin` will build `Data.arc` that is used by the examples. You can use `dgt_video.bat` and `dgt_audio.bat` for video/audio conversion.
+- Use `DGTools` utility for making archive files (compressed, encrypted custom format), converting video/audio to a compatible format. Running the `dgt_arc.bat` in `installdir\bin` will build `Data.arc` that is used by the examples. You can use `dgt_video.bat` and `dgt_audio.bat` for video/audio conversion. **DGTools** uses **FFmpeg** to do the actual conversion. Download and place `FFmpeg.exe` in the same location as `DGTools.exe`. See `installdir\bin\ffmpeg.txt`.
 - In Delphi, load `DelphiGamekit.groupproj` to load and compile the examples/demos/tools, which will showcase the toolkit features and how to use them.
 - See examples in the `installdir\examples` folder for more information about usage.
 - See `installdir\docs` folder for documentation.

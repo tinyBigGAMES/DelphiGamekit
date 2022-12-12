@@ -77,3 +77,4 @@ bin/Screenshots
 bin/*.txt
 bin/*.ini
 docs/*.chw
+!bin/ffmpeg.txt

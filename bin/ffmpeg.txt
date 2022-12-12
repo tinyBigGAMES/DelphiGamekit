@@ -1,0 +1,10 @@
+DGTools uses FFmpeg.exe for audio/video conversion.
+
+1. Download here:
+https://github.com/BtbN/FFmpeg-Builds/releases
+
+2. Place ffmpeg.exe beside DGTools.exe
+
+3. Now DGTools will find and use ffmpeg to do audio/video conversion
+
+4. You can use dgt_arc.bat to build Data.arc used by the examples, dgt_audio/dgt_video.bat to convert audio/video to compatiable formats.
