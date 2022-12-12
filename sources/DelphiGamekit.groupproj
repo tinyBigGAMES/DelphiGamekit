@@ -1,0 +1,96 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{663A96BA-952A-4300-AED0-35912F37D0E6}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="DGTools.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\examples\font_unicode.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\examples\video_play.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\examples\video_chained_play.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\examples\texture_render.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\examples\texture_tiled.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="DGTools">
+        <MSBuild Projects="DGTools.dproj"/>
+    </Target>
+    <Target Name="DGTools:Clean">
+        <MSBuild Projects="DGTools.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DGTools:Make">
+        <MSBuild Projects="DGTools.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="font_unicode">
+        <MSBuild Projects="..\examples\font_unicode.dproj"/>
+    </Target>
+    <Target Name="font_unicode:Clean">
+        <MSBuild Projects="..\examples\font_unicode.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="font_unicode:Make">
+        <MSBuild Projects="..\examples\font_unicode.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="video_play">
+        <MSBuild Projects="..\examples\video_play.dproj"/>
+    </Target>
+    <Target Name="video_play:Clean">
+        <MSBuild Projects="..\examples\video_play.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="video_play:Make">
+        <MSBuild Projects="..\examples\video_play.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="video_chained_play">
+        <MSBuild Projects="..\examples\video_chained_play.dproj"/>
+    </Target>
+    <Target Name="video_chained_play:Clean">
+        <MSBuild Projects="..\examples\video_chained_play.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="video_chained_play:Make">
+        <MSBuild Projects="..\examples\video_chained_play.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="texture_render">
+        <MSBuild Projects="..\examples\texture_render.dproj"/>
+    </Target>
+    <Target Name="texture_render:Clean">
+        <MSBuild Projects="..\examples\texture_render.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="texture_render:Make">
+        <MSBuild Projects="..\examples\texture_render.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="texture_tiled">
+        <MSBuild Projects="..\examples\texture_tiled.dproj"/>
+    </Target>
+    <Target Name="texture_tiled:Clean">
+        <MSBuild Projects="..\examples\texture_tiled.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="texture_tiled:Make">
+        <MSBuild Projects="..\examples\texture_tiled.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="DGTools;font_unicode;video_play;video_chained_play;texture_render;texture_tiled"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="DGTools:Clean;font_unicode:Clean;video_play:Clean;video_chained_play:Clean;texture_render:Clean;texture_tiled:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="DGTools:Make;font_unicode:Make;video_play:Make;video_chained_play:Make;texture_render:Make;texture_tiled:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
