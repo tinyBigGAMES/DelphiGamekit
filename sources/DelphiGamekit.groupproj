@@ -18,7 +18,22 @@
         <Projects Include="..\examples\texture_render.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="..\examples\texture_colorkey.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="..\examples\texture_tiled.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\examples\texture_parallax.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\examples\music_play.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\examples\speech_play.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\examples\demo_elastic.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -74,6 +89,15 @@
     <Target Name="texture_render:Make">
         <MSBuild Projects="..\examples\texture_render.dproj" Targets="Make"/>
     </Target>
+    <Target Name="texture_colorkey">
+        <MSBuild Projects="..\examples\texture_colorkey.dproj"/>
+    </Target>
+    <Target Name="texture_colorkey:Clean">
+        <MSBuild Projects="..\examples\texture_colorkey.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="texture_colorkey:Make">
+        <MSBuild Projects="..\examples\texture_colorkey.dproj" Targets="Make"/>
+    </Target>
     <Target Name="texture_tiled">
         <MSBuild Projects="..\examples\texture_tiled.dproj"/>
     </Target>
@@ -83,14 +107,50 @@
     <Target Name="texture_tiled:Make">
         <MSBuild Projects="..\examples\texture_tiled.dproj" Targets="Make"/>
     </Target>
+    <Target Name="texture_parallax">
+        <MSBuild Projects="..\examples\texture_parallax.dproj"/>
+    </Target>
+    <Target Name="texture_parallax:Clean">
+        <MSBuild Projects="..\examples\texture_parallax.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="texture_parallax:Make">
+        <MSBuild Projects="..\examples\texture_parallax.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="music_play">
+        <MSBuild Projects="..\examples\music_play.dproj"/>
+    </Target>
+    <Target Name="music_play:Clean">
+        <MSBuild Projects="..\examples\music_play.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="music_play:Make">
+        <MSBuild Projects="..\examples\music_play.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="speech_play">
+        <MSBuild Projects="..\examples\speech_play.dproj"/>
+    </Target>
+    <Target Name="speech_play:Clean">
+        <MSBuild Projects="..\examples\speech_play.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="speech_play:Make">
+        <MSBuild Projects="..\examples\speech_play.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="demo_elastic">
+        <MSBuild Projects="..\examples\demo_elastic.dproj"/>
+    </Target>
+    <Target Name="demo_elastic:Clean">
+        <MSBuild Projects="..\examples\demo_elastic.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="demo_elastic:Make">
+        <MSBuild Projects="..\examples\demo_elastic.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="DGTools;font_unicode;video_play;video_chained_play;texture_render;texture_tiled"/>
+        <CallTarget Targets="DGTools;font_unicode;video_play;video_chained_play;texture_render;texture_colorkey;texture_tiled;texture_parallax;music_play;speech_play;demo_elastic"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="DGTools:Clean;font_unicode:Clean;video_play:Clean;video_chained_play:Clean;texture_render:Clean;texture_tiled:Clean"/>
+        <CallTarget Targets="DGTools:Clean;font_unicode:Clean;video_play:Clean;video_chained_play:Clean;texture_render:Clean;texture_colorkey:Clean;texture_tiled:Clean;texture_parallax:Clean;music_play:Clean;speech_play:Clean;demo_elastic:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="DGTools:Make;font_unicode:Make;video_play:Make;video_chained_play:Make;texture_render:Make;texture_tiled:Make"/>
+        <CallTarget Targets="DGTools:Make;font_unicode:Make;video_play:Make;video_chained_play:Make;texture_render:Make;texture_colorkey:Make;texture_tiled:Make;texture_parallax:Make;music_play:Make;speech_play:Make;demo_elastic:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
