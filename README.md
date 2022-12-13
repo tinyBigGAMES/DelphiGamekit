@@ -33,6 +33,7 @@ if you wish to learn more about the Delphi language visit <a href="https://learn
 - **Math** (point, vector, rect and other useful routines for 2D graphics)
 - **Timing** (time-based, frame elapsed, frame speed)
 - **Speech** (text-to-speech, change speed, pitch, select different voices)
+- **Screenshake** (you can set duration and magnitude, they are accumulative)
 - **Misc** (collision, easing, screenshot, colors, INI based config files, logging and other useful utility routines)
 - And more. See `DelphiGamekit.pas` in `installdir\sources` and the docs in `installdir\docs` for more information about features.
 
