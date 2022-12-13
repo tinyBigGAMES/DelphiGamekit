@@ -24,7 +24,7 @@ if you wish to learn more about the Delphi language visit <a href="https://learn
 - Hardware accelerated with **Direct3D**
 - You interact with DelphiGamekit via your derived `TGame` class and the various classes and routines in the `DelphiGamekit` unit.
 - **Archive** (custom archive format, password protected)
-- **Window** (Direct3D, viewports, primitives, blending)
+- **Window** (Direct3D, primitives, blending)
 - **Input** (keyboard, mouse and game controller)
 - **Texture** (color key transparency, scaling, rotation, flipped, tiled, JPEG, PNG)
 - **Video** (play, pause, rewind, MPEG-1 format)
