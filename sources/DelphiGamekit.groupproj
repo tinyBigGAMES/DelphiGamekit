@@ -36,6 +36,9 @@
         <Projects Include="..\examples\demo_elastic.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="..\examples\screenshake.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -143,14 +146,23 @@
     <Target Name="demo_elastic:Make">
         <MSBuild Projects="..\examples\demo_elastic.dproj" Targets="Make"/>
     </Target>
+    <Target Name="screenshake">
+        <MSBuild Projects="..\examples\screenshake.dproj"/>
+    </Target>
+    <Target Name="screenshake:Clean">
+        <MSBuild Projects="..\examples\screenshake.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="screenshake:Make">
+        <MSBuild Projects="..\examples\screenshake.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="DGTools;font_unicode;video_play;video_chained_play;texture_render;texture_colorkey;texture_tiled;texture_parallax;music_play;speech_play;demo_elastic"/>
+        <CallTarget Targets="DGTools;font_unicode;video_play;video_chained_play;texture_render;texture_colorkey;texture_tiled;texture_parallax;music_play;speech_play;demo_elastic;screenshake"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="DGTools:Clean;font_unicode:Clean;video_play:Clean;video_chained_play:Clean;texture_render:Clean;texture_colorkey:Clean;texture_tiled:Clean;texture_parallax:Clean;music_play:Clean;speech_play:Clean;demo_elastic:Clean"/>
+        <CallTarget Targets="DGTools:Clean;font_unicode:Clean;video_play:Clean;video_chained_play:Clean;texture_render:Clean;texture_colorkey:Clean;texture_tiled:Clean;texture_parallax:Clean;music_play:Clean;speech_play:Clean;demo_elastic:Clean;screenshake:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="DGTools:Make;font_unicode:Make;video_play:Make;video_chained_play:Make;texture_render:Make;texture_colorkey:Make;texture_tiled:Make;texture_parallax:Make;music_play:Make;speech_play:Make;demo_elastic:Make"/>
+        <CallTarget Targets="DGTools:Make;font_unicode:Make;video_play:Make;video_chained_play:Make;texture_render:Make;texture_colorkey:Make;texture_tiled:Make;texture_parallax:Make;music_play:Make;speech_play:Make;demo_elastic:Make;screenshake:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

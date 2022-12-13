@@ -12990,7 +12990,8 @@ type
     FRendererSize: SDL_Point;
     FRendererScale: SDL_FPoint;
     FDDPI, FHDPI, FVDPI: Single;
-    FRenderTarget: PSDL_Texture;
+    FRenderBuffer: PSDL_Texture;
+    FRenderBufferRect: SDL_FRect;
   public
     class operator  Initialize (out aDest: TWindow);
     class operator  Finalize (var aDest: TWindow);
@@ -12998,7 +12999,9 @@ type
     class procedure Close; static;
     class function  IsOpen: Boolean; static;
     class procedure Clear(const aColor: TColor); static;
-    class procedure ShowRenderTarget; static;
+    class procedure SetRenderBufferPos(const aX, aY: Single); static;
+    class procedure GetRenderBufferPos(aX, aY: System.PSingle); static;
+    class procedure ShowRenderBuffer; static;
     class procedure Show; static;
     class procedure SetTitle(const aTitle: string); static;
     class function  GetTitle: string; static;
@@ -13017,6 +13020,34 @@ type
     class procedure DrawRect(const aX, aY, aWidth, aHeight: Single; const aColor: TColor); static;
     class procedure DrawFilledRect(const aX, aY, aWidth, aHeight: Single; const aColor: TColor); static;
     class function  Save(const aFilename: string): Boolean; static;
+  end;
+
+type
+
+  TAScreenshake = class
+  protected
+    FActive: Boolean;
+    FDuration: Single;
+    FMagnitude: Single;
+    FTimer: Single;
+    FPos: TPoint;
+  public
+    constructor Create(aDuration: Single; aMagnitude: Single);
+    destructor Destroy; override;
+    procedure Process(aSpeed: Single; aDeltaTime: Double);
+    property Active: Boolean read FActive;
+  end;
+
+  TScreenshake = record
+  private class var
+    FList: TObjectList<TAScreenshake>;
+  public
+    class operator  Initialize(out aDest: TScreenshake);
+    class operator  Finalize(var aDest: TScreenshake);
+    class procedure Process(aSpeed: Single; aDeltaTime: Double); static;
+    class procedure Start(aDuration: Single; aMagnitude: Single); static;
+    class procedure Clear; static;
+    class function  Active: Boolean; static;
   end;
 
 const
@@ -13662,6 +13693,7 @@ type
     FVideo: TVideo;
     FWindow: TWindow;
     FHud: THud;
+    FScreenshake: TScreenshake;
     FConfigFile: TConfigFile;
     FArchive: TArchive;
     FDefaultFont: TFont;
@@ -13677,6 +13709,7 @@ type
     property Video: TVideo read FVideo;
     property Window: TWindow read FWindow;
     property Hud: THud read FHud;
+    property Screenshake: TScreenshake read FScreenshake;
     property Terminate: Boolean read FTerminate write FTerminate;
     property ConfigFile: TConfigFile read FConfigFile;
     property Archive: TArchive read FArchive;
@@ -21090,6 +21123,7 @@ begin
   FAccumulator := FAccumulator + FPassed;
   while (FAccumulator >= FDeltaTime) do
   begin
+    Game.Screenshake.Process(FUpdateSpeed, FDeltaTime);
     Game.OnUpdate(FDeltaTime);
     if FrameSpeed(FFixedUpdateTimer, FFixedUpdateSpeed) then Game.OnFixedUpdate(FFixedUpdateSpeed);
     FAccumulator := FAccumulator - FDeltaTime;
@@ -23639,8 +23673,12 @@ begin
   SDL_RenderSetScale(FRenderer, FRendererScale.X, FRendererScale.Y);
   SDL_GetDisplayDPI(SDL_GetWindowDisplayIndex(FWindow), @FDDPI, @FHDPI, @FVDPI);
 
-  FRenderTarget := SDL_CreateTexture(FRenderer, Ord(SDL_PIXELFORMAT_ARGB8888), Ord(SDL_TEXTUREACCESS_TARGET), aWidth, aHeight);
-  if not Assigned(FRenderTarget) then Exit;
+  FRenderBuffer := SDL_CreateTexture(FRenderer, Ord(SDL_PIXELFORMAT_ARGB8888), Ord(SDL_TEXTUREACCESS_TARGET), aWidth, aHeight);
+  if not Assigned(FRenderBuffer) then Exit;
+  FRenderBufferRect.x := 0;
+  FRenderBufferRect.y := 0;
+  FRenderBufferRect.w := aWidth;
+  FRenderBufferRect.h := aHeight;
 
   SDL_GetRendererInfo(FRenderer, @FRendererInfo);
 
@@ -23653,10 +23691,10 @@ end;
 
 class procedure TWindow.Close;
 begin
-  if Assigned(FRenderTarget) then SDL_DestroyTexture(FRenderTarget);
+  if Assigned(FRenderBuffer) then SDL_DestroyTexture(FRenderBuffer);
   if Assigned(FRenderer) then SDL_DestroyRenderer(FRenderer);
   if Assigned(FWindow) then SDL_DestroyWindow(FWindow);
-  FRenderTarget := nil;
+  FRenderBuffer := nil;
   FRenderer := nil;
   FWindow := nil;
 end;
@@ -23672,16 +23710,32 @@ end;
 class procedure TWindow.Clear(const aColor: TColor);
 begin
   if not IsOpen then Exit;
-  SDL_SetRenderTarget(FRenderer, FRenderTarget);
+
+  SDL_SetRenderDrawColor(FRenderer, 0, 0, 0, 255);
+  SDL_RenderClear(FRenderer);
+
+  SDL_SetRenderTarget(FRenderer, FRenderBuffer);
   SDL_SetRenderDrawColor(FRenderer, aColor.Red, aColor.Green, aColor.BLue, aColor.Alpha);
   SDL_RenderFillRect(FRenderer, nil);
 end;
 
-class procedure TWindow.ShowRenderTarget;
+class procedure TWindow.SetRenderBufferPos(const aX, aY: Single);
+begin
+  FRenderBufferRect.x := aX;
+  FRenderBufferRect.y := aY;
+end;
+
+class procedure TWindow.GetRenderBufferPos(aX, aY: System.PSingle);
+begin
+  if Assigned(aX) then aX^ := FRenderBufferRect.x;
+  if Assigned(aY) then aY^ := FRenderBufferRect.y;
+end;
+
+class procedure TWindow.ShowRenderBuffer;
 begin
   if not IsOpen then Exit;
   SDL_SetRenderTarget(FRenderer, nil);
-  SDL_RenderCopy(FRenderer, FRenderTarget, nil, nil);
+  SDL_RenderCopyF(FRenderer, FRenderBuffer, nil, @FRenderBufferRect);
 end;
 
 class procedure TWindow.Show;
@@ -23810,6 +23864,102 @@ begin
   finally
     SDL_FreeSurface(LFrameBuffer);
   end;
+end;
+
+constructor TAScreenshake.Create(aDuration: Single; aMagnitude: Single);
+begin
+  inherited Create;
+
+  FActive := True;
+  FDuration := aDuration;
+  FMagnitude := aMagnitude;
+  FTimer := 0;
+  FPos.x := 0;
+  FPos.y := 0;
+end;
+
+destructor TAScreenshake.Destroy;
+begin
+  inherited;
+end;
+
+procedure TAScreenshake.Process(aSpeed: Single; aDeltaTime: Double);
+begin
+  if not FActive then Exit;
+
+  FDuration := FDuration - (aSpeed * aDeltaTime);
+  if FDuration <= 0 then
+  begin
+    Game.Window.SetRenderBufferPos(0, 0);
+    FActive := False;
+    Exit;
+  end;
+
+  if Round(FDuration) <> Round(FTimer) then
+  begin
+    Game.Window.SetRenderBufferPos(-FPos.x, -FPos.y);
+
+    FPos.x := RandomRangef(-FMagnitude, FMagnitude);
+    FPos.y := RandomRangef(-FMagnitude, FMagnitude);
+
+    Game.Window.SetRenderBufferPos(FPos.x, FPos.y);
+
+    FTimer := FDuration;
+  end;
+end;
+
+class operator  TScreenshake.Initialize(out aDest: TScreenshake);
+begin
+  aDest.FList := TObjectList<TAScreenshake>.Create(True);
+end;
+
+class operator  TScreenshake.Finalize(var aDest: TScreenshake);
+begin
+  FreeNilObject(aDest.FList);
+end;
+
+class procedure TScreenshake.Process(aSpeed: Single; aDeltaTime: Double);
+var
+  LShake: TAScreenshake;
+  LFlag: Boolean;
+begin
+  LFlag := Active;
+  for LShake in FList do
+  begin
+    if LShake.Active then
+    begin
+      LShake.Process(aSpeed, aDeltaTime);
+    end
+    else
+    begin
+      FList.Remove(LShake);
+    end;
+  end;
+
+  if LFlag then
+  begin
+    if not Active then
+    begin
+    end;
+  end;
+end;
+
+class procedure TScreenshake.Start(aDuration: Single; aMagnitude: Single);
+var
+  LShake: TAScreenshake;
+begin
+  LShake := TAScreenshake.Create(aDuration, aMagnitude);
+  FList.Add(LShake);
+end;
+
+class procedure TScreenshake.Clear;
+begin
+  FList.Clear;
+end;
+
+class function  TScreenshake.Active: Boolean;
+begin
+  Result := Boolean(FList.Count > 0);
 end;
 
 class function TController.Startup: Boolean;
@@ -24528,7 +24678,6 @@ end;
 constructor TFont.Create;
 begin
   inherited;
-
   FGeometry := TGeometry.Create;
   FGlyph := TDictionary<Integer, TGlyph>.Create;
 end;
@@ -24537,12 +24686,14 @@ destructor TFont.Destroy;
 begin
   Unload;
   FreeNilObject(FGlyph);
+  FreeNilObject(FGeometry);
 
   inherited;
 end;
 
 procedure TFont.Unload;
 begin
+  FGeometry.Reset;
   FGlyph.Clear;
   if Assigned(FAtlas) then SDL_DestroyTexture(FAtlas);
   FAtlas := nil;
@@ -25734,7 +25885,7 @@ var
 
     OnRender;
 
-    FWindow.ShowRenderTarget;
+    FWindow.ShowRenderBuffer;
 
     OnRenderHud;
 

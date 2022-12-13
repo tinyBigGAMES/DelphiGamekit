@@ -73,114 +73,15 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 *****************************************************************************)
 
-unit utexture_parallax;
-
-interface
+program screenshake;
+{$APPTYPE CONSOLE}
+{$R *.res}
 uses
   System.SysUtils,
   DelphiGamekit,
-  uCommon;
+  uscreenshake in 'uscreenshake.pas';
 
-type
-  { TExample }
-  TExample = class(TBaseTemplate)
-  protected
-    FTexture: array[0..3] of TTexture;
-    FSpeed: array[0..3] of Single;
-    FPos: array[0..3] of TVector;
-  public
-    procedure OnSetSettings; override;
-    procedure OnStartup; override;
-    procedure OnShutdown; override;
-    procedure OnUpdate(const aDeltaTime: Double); override;
-    procedure OnRender; override;
-    procedure OnRenderHud; override;
-  end;
-
-implementation
-
-{ TExample }
-procedure TExample.OnSetSettings;
 begin
-  inherited;
-
-  Settings.WindowTitle := Settings.WindowTitle + 'Texture: Parallax';
-end;
-
-procedure TExample.OnStartup;
-begin
-  inherited;
-
-  // Create textures
-  FTexture[0] := TTexture.LoadTexture(Archive, 'arc/images/space.png', nil);
-  FTexture[1] := TTexture.LoadTexture(Archive, 'arc/images/nebula.png', @BLACK);
-  FTexture[2] := TTexture.LoadTexture(Archive, 'arc/images/spacelayer1.png', @BLACK);
-  FTexture[3] := TTexture.LoadTexture(Archive, 'arc/images/spacelayer2.png', @BLACK);
-
-  // Set bitmap speeds
-  FSpeed[0] := 0.3 * 30;
-  FSpeed[1] := 0.5 * 30;
-  FSpeed[2] := 1.0 * 30;
-  FSpeed[3] := 2.0 * 30;
-
-  // Clear pos
-  FPos[0].Clear;
-  FPos[1].Clear;
-  FPos[2].Clear;
-  FPos[3].Clear;
-end;
-
-procedure TExample.OnShutdown;
-begin
-  // Free textures
-  FreeNilObject(FTexture[3]);
-  FreeNilObject(FTexture[2]);
-  FreeNilObject(FTexture[1]);
-  FreeNilObject(FTexture[0]);
-
-  inherited;
-end;
-
-procedure TExample.OnUpdate(const aDeltaTime: Double);
-var
-  I: Integer;
-begin
-  inherited;
-
-  // Update texture layers
-  for I := Low(FTexture) to High(FTexture) do
-  begin
-    FPos[I].Y := FPos[I].Y + (FSpeed[I] * aDeltaTime);
-  end;
-
-end;
-
-procedure TExample.OnRender;
-var
-  I: Integer;
-  LBlendMode: TBlendMode;
-begin
-  inherited;
-
-  // Render texture layers
-  for I := Low(FTexture) to High(FTexture) do
-  begin
-    case I of
-      0:   LBlendMode := bmNone;
-      1:   LBlendMode := bmAdd;
-      2,3: LBlendMode := bmBlend;
-    else
-      LBlendMode := bmBlend;
-    end;
-
-    FTexture[I].RenderTiled(FPos[I].X, FPos[I].Y, WHITE, LBlendMode);
-  end;
-end;
-
-procedure TExample.OnRenderHud;
-begin
-  inherited;
-
-end;
-
+  RunGame(TExample);
+  Pause;
 end.
