@@ -1,4 +1,5 @@
-﻿(****************************************************************************
+<?php
+/******************************************************************************
                      ?)[_.
         .":::::::^  .\\\\.     .
         ']{{{{{{{<  ^\\\(`.   :|(;.
@@ -71,75 +72,21 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
-*****************************************************************************)
+-------------------------------------------------------------------------------
+Based on:
+  https://github.com/telecube/mysql-api
+  
+******************************************************************************/
 
-unit ufont_unicode;
+// ensure this definition exists before running the script.
+if(!defined('MAIN_INCLUDED'))
+	exit("Not allowed here!");
 
-interface
+// the master db for write/read
+$master_db_host = "localhost";
+$master_db_port = "3306";
+$master_db_user = "";
+$master_db_pass = "";
 
-uses
-  System.SysUtils,
-  DelphiGamekit,
-  uCommon;
-
-type
-
-  { TExample }
-  TExample = class(TBaseTemplate)
-  protected
-    FUnicodeFont: TFont;
-  public
-    procedure OnSetSettings; override;
-    procedure OnStartup; override;
-    procedure OnShutdown; override;
-    procedure OnUpdate(const aDeltaTime: Double); override;
-    procedure OnRender; override;
-    procedure OnRenderHud; override;
-  end;
-
-implementation
-
-{ TExample }
-procedure TExample.OnSetSettings;
-begin
-  inherited;
-
-  Settings.WindowTitle := Settings.WindowTitle + 'Font: Unicode';
-end;
-
-procedure TExample.OnStartup;
-begin
-  inherited;
-
-  FUnicodeFont := TFont.Create;
-  FUnicodeFont.Load(Archive, 'arc/fonts/unicode-mono.ttf', 10, '你好|こんにちは|안녕하세요');
-end;
-
-procedure TExample.OnShutdown;
-begin
-  FreeNilObject(FUnicodeFont);
-
-  inherited;
-end;
-
-procedure TExample.OnUpdate(const aDeltaTime: Double);
-begin
-  inherited;
-
-end;
-
-procedure TExample.OnRender;
-begin
-  inherited;
-
-end;
-
-procedure TExample.OnRenderHud;
-begin
-  inherited;
-
-  FUnicodeFont.DrawText(Settings.WindowWidth/2, Settings.WindowHeight/2, YELLOW, haCenter, ' en   zh      ja       ko        de   es   pt     fr      vi    id', []);
-  FUnicodeFont.DrawText(Settings.WindowWidth/2, (Settings.WindowHeight/2)+18, GREEN, haCenter, 'Hello|你好|こんにちは|안녕하세요|Hallo|Hola|Olá|Bonjour|Xin chào|Halo', []);
-end;
-
-end.
+// set strong keys here - a good key generator can be found at: https://www.grc.com/passwords.htm
+$apikey         = "";

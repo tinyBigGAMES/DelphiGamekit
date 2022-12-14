@@ -34,6 +34,8 @@ if you wish to learn more about the Delphi language visit <a href="https://learn
 - **Timing** (time-based, frame elapsed, frame speed)
 - **Speech** (text-to-speech, change speed, pitch, select different voices)
 - **Screenshake** (you can set duration and magnitude, they are accumulative)
+- **Async** (push a task to run in the background, and optionally run a forground task after background task completes)
+- **CloudDb** (access remote MySQL database using HTTP and PHP)
 - **Misc** (collision, easing, screenshot, colors, INI based config files, logging and other useful utility routines)
 - And more. See `DelphiGamekit.pas` in `installdir\sources` and the docs in `installdir\docs` for more information about features.
 
@@ -169,7 +171,7 @@ Our development motto:
 - <a href="https://github.com/tinyBigGAMES/DelphiGamekit/discussions" target="_blank">Discussions</a>
 - <a href="https://github.com/tinyBigGAMES/DelphiGamekit/issues" target="_blank">Issue Tracking</a>
 - <a href="https://facebook.com/groups/delphigamekit" target="_blank">Facebook Group</a>
-- <a href="https://twitter.com/i/communities/1566838890195030019" target="_blank">Twitter Community </a>
+- <a href="https://twitter.com/tinyBigGAMES" target="_blank">Twitter </a>
 - <a href="https://discord.gg/S6A5XymrYa" target="_blank">Discord</a> (#delphigamekit)
 - <a href="https://youtube.com/tinyBigGAMES" target="_blank">YouTube</a>
 

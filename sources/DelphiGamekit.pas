@@ -124,6 +124,7 @@ uses
   System.Variants,
   System.ZLib,
   System.Zip,
+  System.SyncObjs,
   System.Win.ComObj,
   System.Win.StdVCL,
   System.Win.Registry,
@@ -12559,14 +12560,54 @@ type
     FFixedUpdateSpeed: Single;
     FFixedUpdateTimer: Single;
   public
-    class operator Initialize (out aDest: TTimer);
-    class operator Finalize (var aDest: TTimer);
+    class operator Initialize(out aDest: TTimer);
+    class operator Finalize(var aDest: TTimer);
     class procedure Reset(aSpeed: Single=0; aFixedSpeed: Single=0); static;
     class procedure Update; static;
     class function  FrameSpeed(var aTimer: Single; aSpeed: Single): Boolean; static;
     class function  FrameElapsed(var aTimer: Single; aFrames: Single): Boolean; static;
     class function  Elapsed(var aTimer: Single; aSeconds: Single): Boolean; static;
     class function  FrameRate: Cardinal; static;
+  end;
+
+type
+  TAsyncProc = reference to procedure;
+
+  TAsyncThread = class(TThread)
+  protected
+    FTask: TAsyncProc;
+    FWait: TAsyncProc;
+    FFinished: Boolean;
+  public
+    property TaskProc: TAsyncProc read FTask write FTask;
+    property WaitProc: TAsyncProc read FWait write FWait;
+    property Finished: Boolean read FFinished;
+    constructor Create; virtual;
+    destructor Destroy; override;
+    procedure Execute; override;
+  end;
+
+  TAsync = record
+  private type
+    TBusyData = record
+      Name: string;
+      Thread: Pointer;
+      Flag: Boolean;
+    end;
+  private class var
+    FCriticalSection: TCriticalSection;
+    FQueue: TList<TAsyncThread>;
+    FBusy: TDictionary<string, TBusyData>;
+  public
+    class operator Initialize(out aDest: TAsync);
+    class operator Finalize(var aDest: TAsync);
+    class procedure Process; static;
+    class procedure Run(const aName: string; const aBackgroundTask: TAsyncProc; const aWaitForgroundTask: TAsyncProc); static;
+    class function  Busy(const aName: string): Boolean; static;
+    class procedure Suspend; static;
+    class procedure Resume; static;
+    class procedure Enter; static;
+    class procedure Leave; static;
   end;
 
 type
@@ -13552,6 +13593,51 @@ type
 {$ENDREGION}
 
 {$REGION ' DelphiGamekit.Network '}
+type
+
+  TCloudDb = class(TBaseObject)
+  protected const
+    cURL = '/?apikey=%s&keyspace=%s&query=%s';
+  protected
+    FUrl: string;
+    FApiKey: string;
+    FDatabase: string;
+    FResponseText: string;
+    FLastError: string;
+    FHttp: THTTPClient;
+    FSQL: TStringList;
+    FPrepairedSQL: string;
+    FJSON: TJSONObject;
+    FDataset: TJSONArray;
+    FMacros: TDictionary<string, string>;
+    FParams: TDictionary<string, string>;
+    procedure SetMacroValue(const aName, aValue: string);
+    procedure SetParamValue(const aName, aValue: string);
+    procedure Prepair;
+    function  GetQueryURL(const aSQL: string): string;
+    function  GetPrepairedSQL: string;
+    function  GetResponseText: string;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure Setup(const aURL, aApiKey, aDatabase: string);
+    procedure ClearSQLText;
+    procedure AddSQLText(const aText: string; const aArgs: array of const);
+    function  GetSQLText: string;
+    procedure SetSQLText(const aText: string);
+    function  GetMacro(const aName: string): string;
+    procedure SetMacro(const aName, aValue: string);
+    function  GetParam(const aName: string): string;
+    procedure SetParam(const aName, aValue: string);
+    function  RecordCount: Integer;
+    function  GetField(const aIndex: Cardinal; const aName: string): string;
+    function  Execute: Boolean;
+    function  ExecuteSQL(const aSQL: string): Boolean;
+    function  GetLastError: string;
+  end;
+
+function  HttpGet(const aURL: string; const aStatus: PString=nil): string;
+
 {$ENDREGION}
 
 {$REGION ' DelphiGamekit.Audio '}
@@ -13694,6 +13780,7 @@ type
     FWindow: TWindow;
     FHud: THud;
     FScreenshake: TScreenshake;
+    FAsync: TAsync;
     FConfigFile: TConfigFile;
     FArchive: TArchive;
     FDefaultFont: TFont;
@@ -13710,6 +13797,7 @@ type
     property Window: TWindow read FWindow;
     property Hud: THud read FHud;
     property Screenshake: TScreenshake read FScreenshake;
+    property Async: TAsync read FAsync;
     property Terminate: Boolean read FTerminate write FTerminate;
     property ConfigFile: TConfigFile read FConfigFile;
     property Archive: TArchive read FArchive;
@@ -21162,6 +21250,154 @@ begin
   Result := FFrameRate;
 end;
 
+constructor TAsyncThread.Create;
+begin
+  inherited Create(True);
+
+  FTask := nil;
+  FWait := nil;
+  FFinished := False;
+end;
+
+destructor TAsyncThread.Destroy;
+begin
+  inherited;
+end;
+
+procedure TAsyncThread.Execute;
+begin
+  FFinished := False;
+
+  if Assigned(FTask) then
+  begin
+    FTask();
+  end;
+
+  FFinished := True;
+end;
+
+class operator TAsync.Initialize(out aDest: TAsync);
+begin
+  aDest.FCriticalSection := TCriticalSection.Create;
+  aDest.FQueue := TList<TAsyncThread>.Create;
+  aDest.FBusy := TDictionary<string, TBusyData>.Create;
+end;
+
+class operator TAsync.Finalize(var aDest: TAsync);
+begin
+  FreeAndNil(aDest.FBusy);
+  FreeAndNil(aDest.FQueue);
+  FreeAndNil(aDest.FCriticalSection);
+end;
+
+class procedure TAsync.Process;
+var
+  LAsyncThread: TAsyncThread;
+  LAsyncThread2: TAsyncThread;
+  LIndex: TBusyData;
+  LBusy: TBusyData;
+begin
+  Enter;
+
+  if TThread.CurrentThread.ThreadID = MainThreadID then
+  begin
+    for LAsyncThread in FQueue do
+    begin
+      if Assigned(LAsyncThread) then
+      begin
+        if LAsyncThread.Finished then
+        begin
+          LAsyncThread.WaitFor;
+          LAsyncThread.WaitProc();
+          FQueue.Remove(LAsyncThread);
+          for LIndex in FBusy.Values do
+          begin
+            if Lindex.Thread = LAsyncThread then
+            begin
+              LBusy := LIndex;
+              LBusy.Flag := False;
+              FBusy.AddOrSetValue(LBusy.Name, LBusy);
+              Break;
+            end;
+          end;
+          LAsyncThread2 := LAsyncThread;
+          FreeAndNil(LAsyncThread2);
+        end;
+      end;
+    end;
+    FQueue.Pack;
+  end;
+
+  Leave;
+end;
+
+class procedure TAsync.Run(const aName: string; const aBackgroundTask: TAsyncProc; const aWaitForgroundTask: TAsyncProc);
+var
+  LAsyncThread: TAsyncThread;
+  LBusy: TBusyData;
+begin
+  if not Assigned(aBackgroundTask) then Exit;
+  if not Assigned(aWaitForgroundTask) then Exit;
+  if aName.IsEmpty then Exit;
+  if Busy(aName) then Exit;
+  Enter;
+  LAsyncThread := TAsyncThread.Create;
+  LAsyncThread.TaskProc := aBackgroundTask;
+  LAsyncThread.WaitProc := aWaitForgroundTask;
+  FQueue.Add(LAsyncThread);
+  LBusy.Name := aName;
+  LBusy.Thread := LAsyncThread;
+  LBusy.Flag := True;
+  FBusy.AddOrSetValue(aName, LBusy);
+  LAsyncThread.Start;
+  Leave;
+end;
+
+class function  TAsync.Busy(const aName: string): Boolean;
+var
+  LBusy: TBusyData;
+begin
+  Result := False;
+  if aName.IsEmpty then Exit;
+  Enter;
+  FBusy.TryGetValue(aName, LBusy);
+  Leave;
+  Result := LBusy.Flag;
+end;
+
+class procedure TAsync.Suspend;
+var
+  LAsyncThread: TAsyncThread;
+begin
+  for LAsyncThread in FQueue do
+  begin
+    if not LAsyncThread.Suspended then
+      LAsyncThread.Suspend;
+  end;
+end;
+
+class procedure TAsync.Resume;
+var
+  LAsyncThread: TAsyncThread;
+begin
+  for LAsyncThread in FQueue do
+  begin
+    if LAsyncThread.Suspended then
+      LAsyncThread.Resume;
+  end;
+end;
+
+class procedure TAsync.Enter;
+begin
+  FCriticalSection.Enter;
+end;
+
+class procedure TAsync.Leave;
+begin
+  FCriticalSection.Leave;
+end;
+
+
 class operator TColor.Implicit(aValue: TColor): SDL_Color;
 begin
   Result.r := aValue.Red;
@@ -25338,6 +25574,184 @@ end;
 {$ENDREGION}
 
 {$REGION ' DelphiGamekit.Network '}
+procedure TCloudDb.SetMacroValue(const aName, aValue: string);
+begin
+  FPrepairedSQL := FPrepairedSQL.Replace('&'+aName, aValue);
+end;
+
+procedure TCloudDb.SetParamValue(const aName, aValue: string);
+begin
+  FPrepairedSQL := FPrepairedSQL.Replace(':'+aName, ''''+aValue+'''');
+end;
+
+procedure TCloudDb.Prepair;
+var
+  LKey: string;
+begin
+  FPrepairedSQL := FSQL.Text;
+
+  for LKey in FMacros.Keys do
+  begin
+    SetMacroValue(LKey, FMacros.Items[LKey]);
+  end;
+
+  for LKey in FParams.Keys do
+  begin
+    SetParamValue(LKey, FParams.Items[LKey]);
+  end;
+
+end;
+
+constructor  TCloudDb.Create;
+begin
+  inherited;
+  FSQL := TStringList.Create;
+  FHttp := THTTPClient.Create;
+  FMacros := TDictionary<string, string>.Create;
+  FParams := TDictionary<string, string>.Create;
+end;
+
+destructor TCloudDb.Destroy;
+begin
+  if Assigned(FJson) then FreeNilObject(FJson);
+  FreeNilObject(FParams);
+  FreeNilObject(FMacros);
+  FreeNilObject(FHttp);
+  FreeNilObject(FSQL);
+  inherited;
+end;
+
+procedure TCloudDb.Setup(const aURL, aApiKey, aDatabase: string);
+begin
+  FUrl := aURL + cURL;
+  FApiKey := aApiKey;
+  FDatabase := aDatabase;
+end;
+
+procedure TCloudDb.ClearSQLText;
+begin
+  FSQL.Clear;
+end;
+
+procedure TCloudDb.AddSQLText(const aText: string;
+  const aArgs: array of const);
+begin
+  FSQL.Add(Format(aText, aArgs));
+end;
+
+function  TCloudDb.GetSQLText: string;
+begin
+  Result := FSQL.Text;
+end;
+
+procedure TCloudDb.SetSQLText(const aText: string);
+begin
+  FSQL.Text := aText;
+end;
+
+function  TCloudDb.GetMacro(const aName: string): string;
+begin
+  FMacros.TryGetValue(aName, Result);
+end;
+
+procedure TCloudDb.SetMacro(const aName, aValue: string);
+begin
+  FMacros.AddOrSetValue(aName, aValue);
+end;
+
+function  TCloudDb.GetParam(const aName: string): string;
+begin
+  FParams.TryGetValue(aName, Result);
+end;
+
+procedure TCloudDb.SetParam(const aName, aValue: string);
+begin
+  FParams.AddOrSetValue(aName, aValue);
+end;
+
+function  TCloudDb.RecordCount: Integer;
+begin
+  Result := 0;
+  if not Assigned(FDataset) then Exit;
+  Result := FDataset.Count;
+end;
+
+function  TCloudDb.GetField(const aIndex: Cardinal;
+  const aName: string): string;
+begin
+  Result := '';
+  if not Assigned(FDataset) then Exit;
+  if aIndex > Cardinal(FDataset.Count-1) then Exit;
+  Result := FDataset.Items[aIndex].GetValue<string>(aName);
+end;
+
+function  TCloudDb.GetQueryURL(const aSQL: string): string;
+begin
+  Result := Format(FUrl, [FApiKey, FDatabase, aSQL]);
+end;
+
+function  TCloudDb.GetPrepairedSQL: string;
+begin
+  Result := FPrepairedSQL;
+end;
+
+function TCloudDb.Execute: Boolean;
+begin
+  Prepair;
+  Result := ExecuteSQL(FPrepairedSQL);
+end;
+
+function  TCloudDb.ExecuteSQL(const aSQL: string): Boolean;
+var
+  LResponse: IHTTPResponse;
+begin
+  Result := False;
+  if aSQL.IsEmpty then Exit;
+  LResponse := FHttp.Get(GetQueryURL(aSQL));
+  FResponseText := LResponse.ContentAsString;
+  if Assigned(FJson) then
+  begin
+    FreeNilObject(FJson);
+    FDataset := nil;
+  end;
+  FJson := TJSONObject.ParseJSONValue(FResponseText) as TJSONObject;
+  FLastError := FJson.GetValue('response').Value;
+  Result := Boolean(FLastError.IsEmpty or SameText(FLastError, 'true'));
+  if FLastError.IsEmpty then
+  begin
+    if Assigned(FDataset) then FreeNilObject(FDataset);
+    FJson.TryGetValue('response', FDataset);
+  end;
+  if not Assigned(FDataset) then
+    FreeNilObject(FJson);
+end;
+
+function TCloudDb.GetLastError: string;
+begin
+  Result := FLastError;
+end;
+
+function TCloudDb.GetResponseText: string;
+begin
+  Result:= FResponseText;
+end;
+
+function HttpGet(const aURL: string; const aStatus: PString=nil): string;
+var
+  LHttp: THTTPClient;
+  LResponse: IHTTPResponse;
+begin
+  LHttp := THTTPClient.Create;
+  try
+    LResponse := LHttp.Get(aURL);
+    Result := LResponse.ContentAsString;
+    if Assigned(aStatus) then
+      aStatus^ := LResponse.StatusText;
+  finally
+    FreeNilObject(LHttp);
+  end;
+end;
+
 {$ENDREGION}
 
 {$REGION ' DelphiGamekit.Audio '}
@@ -25879,6 +26293,8 @@ var
 
   procedure UpdateFrame;
   begin
+    Async.Process;
+
     Timer.Update;
 
     OnClearWindow;
@@ -25932,8 +26348,12 @@ begin
                     Ord(SDL_WINDOWEVENT_FOCUS_LOST):
                     begin
                       FReady := False;
-                      Mix_Pause(-1);
-                      Mix_PauseMusic;
+                      if not Settings.WindowUpdateOnLostFocus then
+                      begin
+                        FAsync.Suspend;
+                        Mix_Pause(-1);
+                        Mix_PauseMusic;
+                      end;
                       OnReady(FReady);
                     end;
 
@@ -25943,8 +26363,13 @@ begin
                     Ord(SDL_WINDOWEVENT_FOCUS_GAINED):
                       begin
                         FReady := True;
-                        Mix_Resume(-1);
-                        Mix_ResumeMusic;
+                        if not Settings.WindowUpdateOnLostFocus then
+                        begin
+                          FAsync.Resume;
+                          Mix_Resume(-1);
+                          Mix_ResumeMusic;
+                        end;
+
                         OnReady(FReady);
                         Timer.Reset;
                       end;
