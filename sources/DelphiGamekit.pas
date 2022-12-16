@@ -13473,9 +13473,9 @@ type
     constructor Create; override;
     destructor Destroy; override;
     procedure Alloc(const aWidth, aHeight: Cardinal; const aAccess: TTextureAccess);
-    function Load(const aArchive: TArchive; const aFilename: string; const aColorKey: PSDL_Color): Boolean;
+    function Load(const aArchive: TArchive; const aFilename: string; const aColorKey: PColor): Boolean;
     procedure Unload;
-    procedure Render(const aSrcRect: PSDL_FRect; const aX, aY: Single; aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PSDL_FPoint; const aColor: SDL_Color; const aBlendMode: TBlendMode);
+    procedure Render(const aSrcRect: PRect; const aX, aY: Single; aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PPoint; const aColor: SDL_Color; const aBlendMode: TBlendMode);
     procedure RenderTiled(const aDeltaX, aDeltaY: Single; const aColor: SDL_Color; const aBlendMode: TBlendMode);
     procedure Lock(const aRect: PSDL_FRect);
     procedure Unlock;
@@ -13485,7 +13485,7 @@ type
     procedure SetColor(const aColor: SDL_Color);
     function GetColor: SDL_Color;
     function Save(const aFilename: string): Boolean;
-    class function LoadTexture(const aArchive: TArchive; const aFilename: string; const aColorKey: PSDL_Color): TTexture;
+    class function LoadTexture(const aArchive: TArchive; const aFilename: string; const aColorKey: PColor): TTexture;
   end;
 
 
@@ -13588,7 +13588,215 @@ type
     class procedure Draw(const aX, aY, aScale: Single); static;
   end;
 
+type
+  TPolygon = class(TBaseObject)
+  protected type
+    TSegment = record
+      Point: TPoint;
+      Visible: Boolean;
+    end;
+  protected
+    FSegment   : array of TSegment;
+    FWorldPoint: array of TPoint;
+    FItemCount : Integer;
+    procedure Clear;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure Save(const aFilename: string);
+    procedure Load(const aArchive: TArchive; const aFilename: string);
+    procedure CopyFrom(const aPolygon: TPolygon);
+    procedure AddLocalPoint(const aX, aY: Single; const aVisible: Boolean);
+    function  Transform(const aX, aY, aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PPoint): Boolean;
+    procedure Render(const aX, aY, aScale, aAngle, aWidth: Single; aColor: TColor; aFlipMode: TFlipMode; aOrigin: PPoint);
+    procedure SetSegmentVisible(const aIndex: Integer; const aVisible: Boolean);
+    function  SegmentVisible(const aIndex: Integer): Boolean;
+    function  PointCount: Integer;
+    function  WorldPoint(const aIndex: Integer): PPoint;
+    function  LocalPoint(const aIndex: Integer): PPoint;
+  end;
 
+type
+  TPolyPoint = class;
+  TSprite = class;
+
+  TPolypointTrace = record
+  private class var
+  const
+    Neighbours: array [1 .. 8, 1 .. 2] of Integer = ((0, -1), (-1, 0), (0, 1),
+      (1, 0), (-1, -1), (-1, 1), (1, 1), (1, -1));
+  type
+    TR_Point = record
+      X, Y: Integer;
+    end;
+  private class var
+    PolyArr: array of TR_Point;
+    PntCount: Integer;
+    Mju: Extended;
+    MaxStepBack: Integer;
+    AlphaThreshold: Byte;
+    class function  IsNeighbour(X1, Y1, X2, Y2: Integer): Boolean; static;
+    class function  IsPixEmpty(Tex: TTexture; X, Y, W, H: Integer): Boolean; static;
+    class procedure FindStartingPoint(Tex: TTexture; var X, Y: Integer; W, H: Integer); static;
+    class function  CountEmptyAround(Tex: TTexture; X, Y, W, H: Integer): Integer; static;
+    class function  FindNearestButNotNeighbourOfOther(Tex: TTexture; Xs, Ys, XOther, YOther: Integer; var XF, YF: Integer; W, H: Integer): Boolean; static;
+    class function  LineLength(X1, Y1, X2, Y2: Integer): Extended; static;
+    class function  TriangleThinness(X1, Y1, X2, Y2, X3, Y3: Integer): Extended; static;
+    class function  IsInList(X, Y: Integer): Boolean; static;
+  public
+    class procedure Init(aMju: Extended=6; aMaxStepBack: Integer=10; aAlphaThreshold: Byte=70); static;
+    class procedure Done; static;
+    class procedure AddPoint(X, Y: Integer); static;
+    class procedure DelPoint(Index: Integer); static;
+    class function  GetPointCount: Integer; static;
+    class procedure PrimaryTrace(const Tex: TTexture; const W, H: Integer); static;
+    class procedure SimplifyPoly; static;
+    class procedure ApplyPolyPoint(aPolyPoint: TPolyPoint; aNum: Integer; aOrigin: PPoint); static;
+  end;
+
+  TPolyPoint = class(TBaseObject)
+  protected
+    FPolygon: array of TPolygon;
+    FCount  : Integer;
+    procedure Clear;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure Save(const aFilename: string);
+    procedure Load(const aArchive: TArchive; const aFilename: string);
+    procedure CopyFrom(const aPolyPoint: TPolyPoint);
+    procedure AddPoint(const aNum: Integer; const aX, aY: Single; const aOrigin: PPoint);
+    function  TraceFromTexture(const aTexture: TTexture; const aMju: Single; const aMaxStepBack, aAlphaThreshold: Integer; const aOrigin: PPoint): Integer;
+    procedure TraceFromSprite(const aSprite: TSprite; const aGroup: Integer; const aMju: Single; const aMaxStepBack, aAlphaThreshold: Integer; const aOrigin: PPoint);
+    function  Count: Integer;
+    procedure Render(const aNum: Integer; aX, aY, aScale, aAngle: Single; const aColor: TColor; const aFlipMode: TFlipMode; const aOrigin: PPoint);
+    function  Collide(const aNum1, aGroup1: Integer; const aX1, aY1, aScale1, aAngle1: Single; const aFlipMode1: TFlipMode; const aOrigin1: PPoint; const aPolyPoint2: TPolyPoint; const aNum2, aGroup2: Integer; const aX2, aY2, aScale2, aAngle2: Single; const aFlipMode2: TFlipMode; const aOrigin2: PPoint; var aHitPos: TPoint): Boolean;
+    function  CollidePoint(const aNum, aGroup: Integer; const aX, aY, aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PPoint; var aPoint: TPoint): Boolean;
+    function  Polygon(const aNum: Integer): TPolygon;
+    function  Valid(const aNum: Integer): Boolean;
+  end;
+
+  TSprite = class(TBaseObject)
+  protected type
+    PSpriteImageRect = ^TSpriteImageRect;
+    TSpriteImageRect = record
+      Rect: TRect;
+      Page: Integer;
+    end;
+
+    PSpriteGroup = ^TSpriteGroup;
+    TSpriteGroup = record
+      Image: array of TSpriteImageRect;
+      Count: Integer;
+      PolyPoint: TPolyPoint;
+    end;
+  protected
+    FTexture: array of TTexture;
+    FGroup: array of TSpriteGroup;
+    FPageCount: Integer;
+    FGroupCount: Integer;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure Clear;
+    function  LoadPage(const aArchive: TArchive; const aFilename: string; const aColorKey: PColor): Integer;
+    function  AddGroup: Integer;
+    function  AddImageFromRect(const aPage, aGroup: Integer; const aRect: TRect): Integer;
+    function  AddImageFromGrid(const aPage, aGroup, aGridX, aGridY, aGridWidth: Integer; aGridHeight: Integer): Integer;
+    function  ImageCount(const aGroup: Integer): Integer;
+    function  ImageWidth(const aNum, aGroup: Integer): Single;
+    function  ImageHeight(const aNum, aGroup: Integer): Single;
+    function  ImageTexture(const aNum, aGroup: Integer): TTexture;
+    procedure RenderImage(const aNum, aGroup: Integer; const aX, aY, aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PPoint; const aColor: TColor; const aBlendMode: TBlendMode; const aRenderPolyPoint: Boolean=false);
+    function  ImageRect(const aNum, aGroup: Integer): TRect;
+    function  GroupPolyPoint(const aGroup: Integer): Pointer;
+    procedure GroupPolyPointTrace(const aGroup: Integer; const aMju: Single=6; const aMaxStepBack: Integer=12; const aAlphaThreshold: Integer=70; const aOrigin: PPoint=nil);
+    function  GroupPolyPointCollide(const aNum1, aGroup1: Integer; const aX1, aY1, aScale1, aAngle1: Single; const aFlipMode1: TFlipMode; const aOrigin1: PPoint; const aSprite2: TSprite; const aNum2, aGroup2: Integer; const aX2, aY2, aScale2, aAngle2: Single; const aFlipMode2: TFlipMode; const aOrigin2: PPoint; const aShrinkFactor: Single; var aHitPos: TPoint): Boolean;
+    function  GroupPolyPointCollidePoint(const aNum, aGroup: Integer; const aX, aY, aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PPoint; const aShrinkFactor: Single; var aPoint: TPoint): Boolean;
+  end;
+
+type
+  TEntity = class(TBaseObject)
+  protected
+    FSprite      : TSprite;
+    FGroup       : Integer;
+    FFrame       : Integer;
+    FFrameFPS    : Single;
+    FFrameTimer  : Single;
+    FPos         : TVector;
+    FDir         : TVector;
+    FScale       : Single;
+    FAngle       : Single;
+    FAngleOffset : Single;
+    FColor       : TColor;
+    FFlipMode    : TFlipMode;
+    FLoopFrame   : Boolean;
+    FWidth       : Single;
+    FHeight      : Single;
+    FRadius      : Single;
+    FFirstFrame  : Integer;
+    FLastFrame   : Integer;
+    FShrinkFactor: Single;
+    FOrigin      : TPoint;
+    FRenderPolyPoint: Boolean;
+    FBlendMode: TBlendMode;
+  public
+    property BlendMode: TBlendMode read FBlendMode write FBlendMode;
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure Init(const aSprite: TSprite; const aGroup: Integer);
+    procedure SetFrameRange(const aFirst, aLast: Integer);
+    function  NextFrame: Boolean;
+    function  PrevFrame: Boolean;
+    function  Frame: Integer;
+    procedure SetFrame(const aFrame: Integer);
+    function  FrameFPS: Single;
+    procedure SetFrameFPS(const aFrameFPS: Single);
+    function  FirstFrame: Integer;
+    function  LastFrame: Integer;
+    procedure SetPosAbs(const aX, aY: Single);
+    procedure SetPosRel(const aX, aY: Single);
+    function  Pos: TVector;
+    function  Dir: TVector;
+    procedure ScaleAbs(const aScale: Single);
+    procedure ScaleRel(const aScale: Single);
+    function  Angle: Single;
+    function  AngleOffset: Single;
+    procedure SetAngleOffset(const aAngle: Single);
+    procedure RotateAbs(const aAngle: Single);
+    procedure RotateRel(const aAngle: Single);
+    function  RotateToAngle(const aAngle, aSpeed: Single): Boolean;
+    function  RotateToPos(const aX, aY, aSpeed: Single): Boolean;
+    function  RotateToPosAt(const aSrcX, aSrcY, aDestX, aDestY, aSpeed: Single): Boolean;
+    procedure Thrust(const aSpeed: Single);
+    procedure ThrustAngle(const aAngle, aSpeed: Single);
+    function  ThrustToPos(const aThrustSpeed, aRotSpeed, aDestX, aDestY, aSlowdownDist, aStopDist, aStopSpeed, aStopSpeedEpsilon: Single; const aDeltaTime: Double): Boolean;
+    function  Visible(const aVirtualX, aVirtualY: Single): Boolean;
+    function  FullyVisible(const aVirtualX, aVirtualY: Single): Boolean;
+    function  Overlap(const aX, aY, aRadius, aShrinkFactor: Single): Boolean; overload;
+    function  Overlap(const aEntity: TEntity): Boolean; overload;
+    procedure Render(const aVirtualX, aVirtualY: Single);
+    procedure RenderAt(const aX, aY: Single);
+    procedure TracePolyPoint(const aMju: Single=6; const aMaxStepBack: Integer=12; const aAlphaThreshold: Integer=70; const aOrigin: PPoint=nil);
+    function  CollidePolyPoint(const aEntity: TEntity; var aHitPos: TPoint): Boolean;
+    function  CollidePolyPointPoint(var aPoint: TPoint): Boolean;
+    function  Sprite: TSprite;
+    function  Group: Integer;
+    function  Scale: Single;
+    function  Color: TColor;
+    procedure SetColor(const aColor: TColor);
+    function  FlipMode: TFlipMode;
+    procedure SetFlipMode(const aFlipMode: TFlipMode);
+    function  LoopFrame: Boolean;
+    procedure SetLoopFrame(const aLoop: Boolean);
+    function  Width: Single;
+    function  Height: Single;
+    function  Radius: Single;
+    function  ShrinkFactor: Single;
+    procedure SetShrinkFactor(const aShrinkFactor: Single);
+    procedure SetRenderPolyPoint(const aValue: Boolean);
+    class function CreateEntity(const aSprite: TSprite; const aGroup: Integer): TEntity;
+  end;
 
 {$ENDREGION}
 
@@ -13784,7 +13992,9 @@ type
     FConfigFile: TConfigFile;
     FArchive: TArchive;
     FDefaultFont: TFont;
+    FSprite: TSprite;
     FSettings: TSettings;
+    FMousePos: TPoint;
   public
     property Timer: TTimer read FTimer;
     property CmdLine: TCmdLine read FCmdLine;
@@ -13802,6 +14012,8 @@ type
     property ConfigFile: TConfigFile read FConfigFile;
     property Archive: TArchive read FArchive;
     property DefaultFont: TFont read FDefaultFont;
+    property Sprite: TSprite read FSprite;
+    property MousePos: TPoint read FMousePos;
 
     constructor Create; override;
     destructor Destroy; override;
@@ -23947,7 +24159,7 @@ class procedure TWindow.Clear(const aColor: TColor);
 begin
   if not IsOpen then Exit;
 
-  SDL_SetRenderDrawColor(FRenderer, 0, 0, 0, 255);
+  SDL_SetRenderDrawColor(FRenderer, aColor.Red, aColor.Green, aColor.BLue, aColor.Alpha);
   SDL_RenderClear(FRenderer);
 
   SDL_SetRenderTarget(FRenderer, FRenderBuffer);
@@ -24624,7 +24836,7 @@ begin
   end;
 end;
 
-function TTexture.Load(const aArchive: TArchive; const aFilename: string; const aColorKey: PSDL_Color): Boolean;
+function TTexture.Load(const aArchive: TArchive; const aFilename: string; const aColorKey: PColor): Boolean;
 var
   LRWops: PSDL_RWops;
   LHandle: PSDL_Texture;
@@ -24650,7 +24862,7 @@ begin
 
   if aColorKey <> nil then
    begin
-    SDL_SetColorKey(srcsurface, 1, SDL_MapRGB(srcsurface.format, aColorKey.r, aColorKey.g, aColorKey.b));
+    SDL_SetColorKey(srcsurface, 1, SDL_MapRGB(srcsurface.format, aColorKey.red, aColorKey.green, aColorKey.blue));
    end;
 
   LPixelFormat := SDL_AllocFormat(Ord(SDL_PIXELFORMAT_ARGB8888));
@@ -24690,7 +24902,7 @@ begin
   end;
 end;
 
-procedure TTexture.Render(const aSrcRect: PSDL_FRect; const aX, aY: Single; aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PSDL_FPoint; const aColor: SDL_Color; const aBlendMode: TBlendMode);
+procedure TTexture.Render(const aSrcRect: PRect; const aX, aY: Single; aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PPoint; const aColor: SDL_Color; const aBlendMode: TBlendMode);
 var
   LSrcRect: SDL_Rect;
   LDstRect: SDL_FRect;
@@ -24708,8 +24920,8 @@ begin
   begin
     LSrcRect.x := Round(aSrcRect.x);
     LSrcRect.y := Round(aSrcRect.y);
-    LSrcRect.w := Round(aSrcRect.w);
-    LSrcRect.h := Round(aSrcRect.h);
+    LSrcRect.w := Round(aSrcRect.Width);
+    LSrcRect.h := Round(aSrcRect.Height);
   end;
 
   if aOrigin <> nil then
@@ -24902,7 +25114,7 @@ begin
   SDL_UnlockTexture(FHandle);
 end;
 
-class function TTexture.LoadTexture(const aArchive: TArchive; const aFilename: string; const aColorKey: PSDL_Color): TTexture;
+class function TTexture.LoadTexture(const aArchive: TArchive; const aFilename: string; const aColorKey: PColor): TTexture;
 begin
   Result := TTexture.Create;
   if not Result.Load(aArchive, aFilename, aColorKey) then
@@ -25569,7 +25781,1420 @@ begin
   SDL_RenderCopyF(Game.Window.GetRendererHandle, FTexture, nil, @LRect);
 end;
 
+procedure TPolygon.Clear;
+begin
+  FSegment := nil;
+  FWorldPoint := nil;
+  FItemCount := 0;
+end;
 
+constructor TPolygon.Create;
+begin
+  inherited;
+  Clear;
+end;
+
+destructor TPolygon.Destroy;
+begin
+  inherited;
+  Clear;
+end;
+
+procedure TPolygon.Save(const aFilename: string);
+var
+  Size: Integer;
+  fs: TFileStream;
+begin
+  fs := TFile.Create(aFilename);
+  try
+    fs.WriteData(@FItemCount, SizeOf(FItemCount));
+
+    Size := SizeOf(FSegment[0]) * FItemCount;
+    fs.WriteData(FSegment, Size);
+
+    Size := SizeOf(FWorldPoint[0]) * FItemCount;
+    fs.WriteData(FWorldPoint, Size);
+
+  finally
+    FreeNilObject(fs);
+  end;
+end;
+
+procedure TPolygon.Load(const aArchive: TArchive; const aFilename: string);
+var
+  LSize: Integer;
+  LRWops: PSDL_RWops;
+begin
+  LRWops := nil;
+
+  if Assigned(aArchive) then
+    begin
+      if aArchive.IsOpen then
+        LRWops := aArchive.OpenFileRWops(aFilename)
+    end
+  else
+    LRWops := GetFileRWops(aFilename);
+
+  Clear;
+
+  SDL_RWread(LRWops, @FItemCount, SizeOf(FItemCount), 1);
+
+  SetLength(FSegment, FItemCount);
+  LSize := SizeOf(FSegment[0]) * FItemCount;
+  SDL_RWread(LRWops, FSegment, LSize, 1);
+
+  SetLength(FWorldPoint, FItemCount);
+  LSize := SizeOf(FWorldPoint[0]) * FItemCount;
+  SDL_RWread(LRWops, FWorldPoint, LSize, 1);
+
+  SDL_RWclose(LRWops);
+end;
+
+procedure TPolygon.CopyFrom(const aPolygon: TPolygon);
+var
+  I: Integer;
+begin
+  Clear;
+  for I := 0 to FItemCount-1 do
+  begin
+    with FSegment[I] do
+    begin
+      AddLocalPoint(Point.X, Point.Y, Visible);
+    end;
+  end;
+end;
+
+
+procedure TPolygon.AddLocalPoint(const aX, aY: Single; const aVisible: Boolean);
+begin
+  Inc(FItemCount);
+  SetLength(FSegment, FItemCount);
+  SetLength(FWorldPoint, FItemCount);
+  FSegment[FItemCount-1].Point.X := aX;
+  FSegment[FItemCount-1].Point.Y := aY;
+  FSegment[FItemCount-1].Visible := aVisible;
+  FWorldPoint[FItemCount-1].X := 0;
+  FWorldPoint[FItemCount-1].Y := 0;
+end;
+
+function  TPolygon.Transform(const aX, aY, aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PPoint): Boolean;
+var
+  I: Integer;
+  P: TVector;
+begin
+  Result := False;
+
+  if FItemCount < 2 then Exit;
+
+  for I := 0 to FItemCount-1 do
+  begin
+    P.X := FSegment[I].Point.X;
+    P.Y := FSegment[I].Point.Y;
+
+    if aOrigin <> nil then
+    begin
+      P.X := P.X - aOrigin.X;
+      P.Y := P.Y - aOrigin.Y;
+    end;
+
+    case aFlipMode of
+      fmNone:
+        begin
+        end;
+
+      fmVertical:
+        begin
+          P.Y := -P.Y;
+        end;
+
+      fmHorizontal:
+        begin
+          P.X := -P.X;
+        end;
+    end;
+
+    P.X := P.X * aScale;
+    P.Y := P.Y * aScale;
+
+    AngleRotatePos(aAngle, P.X, P.Y);
+
+    P.X := P.X + aX;
+    P.Y := P.Y + aY;
+
+    FWorldPoint[I].X := P.X;
+    FWorldPoint[I].Y := P.Y;
+  end;
+
+  Result := True;
+end;
+
+procedure TPolygon.Render(const aX, aY, aScale, aAngle, aWidth: Single; aColor: TColor; aFlipMode: TFlipMode; aOrigin: PPoint);
+var
+  I: Integer;
+  X0,Y0,X1,Y1: Integer;
+begin
+  if not Transform(aX, aY, aScale, aAngle, aFlipMode, aOrigin) then Exit;
+
+  for I := 0 to FItemCount-2 do
+  begin
+    if FSegment[I].Visible then
+    begin
+      X0 := Round(FWorldPoint[I].X);
+      Y0 := Round(FWorldPoint[I].Y);
+      X1 := Round(FWorldPoint[I+1].X);
+      Y1 := Round(FWorldPoint[I+1].Y);
+      Game.Window.DrawLine(X0, Y0, X1, Y1, aColor);
+    end;
+  end;
+end;
+
+procedure TPolygon.SetSegmentVisible(const aIndex: Integer; const aVisible: Boolean);
+begin
+  FSegment[aIndex].Visible := True;
+end;
+
+function  TPolygon.SegmentVisible(const aIndex: Integer): Boolean;
+begin
+  Result := FSegment[aIndex].Visible;
+end;
+
+function  TPolygon.PointCount: Integer;
+begin
+  Result := FItemCount;
+end;
+
+function  TPolygon.WorldPoint(const aIndex: Integer): PPoint;
+begin
+  Result := @FWorldPoint[aIndex];
+end;
+
+function  TPolygon.LocalPoint(const aIndex: Integer): PPoint;
+begin
+  Result := @FSegment[aIndex].Point;
+end;
+
+class function TPolypointTrace.IsNeighbour(X1, Y1, X2, Y2: Integer): Boolean;
+begin
+  Result := (Abs(X2 - X1) <= 1) and (Abs(Y2 - Y1) <= 1);
+end;
+
+class function TPolypointTrace.IsPixEmpty(Tex: TTexture; X, Y, W, H: Integer): Boolean;
+var
+  Color: TColor;
+begin
+  if (X < 0) or (Y < 0) or (X > W - 1) or (Y > H - 1) then
+    Result := true
+  else
+  begin
+    Color := Tex.GetPixel(X, Y);
+    Result := Boolean(Color.Alpha < AlphaThreshold);
+  end;
+end;
+
+class procedure TPolypointTrace.FindStartingPoint(Tex: TTexture; var X, Y: Integer; W, H: Integer);
+var
+  I, J: Integer;
+begin
+  X := 1000000;
+  Y := 1000000;
+  I := 0;
+  J := 0;
+  while (X = 1000000) and (I <= H) do
+  begin
+    if not IsPixEmpty(Tex, I, J, W, H) then
+    begin
+      X := I;
+      Y := J;
+    end;
+    Inc(I);
+    if I = W then
+    begin
+      I := 0;
+      Inc(J);
+    end;
+  end;
+  if X = 1000000 then
+  begin
+    Game.Log.Add('do something awful - texture is empty!', []);
+    Halt;
+  end;
+end;
+
+class function  TPolypointTrace.CountEmptyAround(Tex: TTexture; X, Y, W, H: Integer): Integer;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 1 to 8 do
+    if IsPixEmpty(Tex, X + Neighbours[I, 1], Y + Neighbours[I, 2], W, H) then
+      Inc(Result);
+end;
+
+class function  TPolypointTrace.FindNearestButNotNeighbourOfOther(Tex: TTexture; Xs, Ys, XOther, YOther: Integer; var XF, YF: Integer; W, H: Integer): Boolean;
+var
+  I, MaxEmpty, E: Integer;
+  Xt, Yt: Integer;
+begin
+  MaxEmpty := 0;
+  Result := False;
+  for I := 1 to 8 do
+  begin
+    Xt := Xs + Neighbours[I, 1];
+    Yt := Ys + Neighbours[I, 2];
+
+    if (not IsInList(Xt, Yt)) and (not IsNeighbour(Xt, Yt, XOther, YOther)) and
+      (not IsPixEmpty(Tex, Xt, Yt, W, H)) then
+    begin
+      E := CountEmptyAround(Tex, Xt, Yt, W, H);
+      if E > MaxEmpty then
+      begin
+        XF := Xt;
+        YF := Yt;
+        MaxEmpty := E;
+        Result := true;
+      end;
+    end;
+  end;
+end;
+
+class function TPolypointTrace.LineLength(X1, Y1, X2, Y2: Integer): Extended;
+var
+  A, B: Integer;
+begin
+  A := Abs(X2 - X1);
+  B := Abs(Y2 - Y1);
+  Result := Sqrt(A * A + B * B);
+end;
+
+class function TPolypointTrace.TriangleThinness(X1, Y1, X2, Y2, X3,
+  Y3: Integer): Extended;
+var
+  P: Extended;
+  A, B, C, S: Extended;
+begin
+  A := LineLength(X1, Y1, X2, Y2);
+  B := LineLength(X2, Y2, X3, Y3);
+  C := LineLength(X3, Y3, X1, Y1);
+  P := A + B + C;
+  S := Sqrt(P * (P - A) * (P - B) * (P - C));
+  Result := S / P;
+end;
+
+class function TPolypointTrace.IsInList(X, Y: Integer): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 0 to PntCount - 1 do
+  begin
+    Result := (PolyArr[I].X = X) and (PolyArr[I].Y = Y);
+    if Result then
+      Break;
+  end;
+end;
+
+class procedure TPolypointTrace.Init(aMju: Extended; aMaxStepBack: Integer;
+  aAlphaThreshold: Byte);
+begin
+  Done;
+  Mju := aMju;
+  MaxStepBack := aMaxStepBack;
+  AlphaThreshold := aAlphaThreshold;
+end;
+
+class procedure TPolypointTrace.Done;
+begin
+  PntCount := 0;
+  PolyArr := nil;
+end;
+
+class procedure TPolypointTrace.AddPoint(X, Y: Integer);
+var
+  L: Integer;
+begin
+  Inc(PntCount);
+  L := High(PolyArr) + 1;
+  if L < PntCount then
+    SetLength(PolyArr, L + MaxStepBack);
+  PolyArr[PntCount - 1].X := X;
+  PolyArr[PntCount - 1].Y := Y;
+end;
+
+class procedure TPolypointTrace.DelPoint(Index: Integer);
+var
+  I: Integer;
+begin
+  if PntCount > 1 then
+    for I := Index to PntCount - 2 do
+      PolyArr[I] := PolyArr[I + 1];
+  Dec(PntCount);
+end;
+
+class function  TPolypointTrace.GetPointCount: Integer;
+begin
+  Result := PntCount;
+end;
+
+class procedure TPolypointTrace.PrimaryTrace(const Tex: TTexture; const W, H: Integer);
+var
+  I: Integer;
+  Xn, Yn, Xnn, Ynn: Integer;
+  NextPointFound: Boolean;
+  Back: Integer;
+  StepBack: Integer;
+begin
+  FindStartingPoint(Tex, Xn, Yn, W, H);
+  NextPointFound := Xn <> 1000000;
+  StepBack := 0;
+  while NextPointFound do
+  begin
+    NextPointFound := False;
+
+    if not((PntCount > 3) and IsNeighbour(Xn, Yn, PolyArr[0].X, PolyArr[0].Y))
+    then
+    begin
+      if PntCount > 7 then
+        Back := 7
+      else
+        Back := PntCount;
+      if Back = 0 then
+        NextPointFound := FindNearestButNotNeighbourOfOther(Tex, Xn, Yn, -100,
+          -100, Xnn, Ynn, W, H)
+      else
+        for I := 1 to Back do
+        begin
+          NextPointFound := FindNearestButNotNeighbourOfOther(Tex, Xn, Yn,
+            PolyArr[PntCount - I].X, PolyArr[PntCount - I].Y, Xnn, Ynn, W, H);
+          NextPointFound := NextPointFound and (not IsInList(Xnn, Ynn));
+          if NextPointFound then
+            Break;
+        end;
+      AddPoint(Xn, Yn);
+      if NextPointFound then
+      begin
+        Xn := Xnn;
+        Yn := Ynn;
+        StepBack := 0;
+      end
+      else if StepBack < MaxStepBack then
+      begin
+        Xn := PolyArr[PntCount - StepBack * 2 - 2].X;
+        Yn := PolyArr[PntCount - StepBack * 2 - 2].Y;
+        Inc(StepBack);
+        NextPointFound := true;
+      end;
+    end;
+  end;
+  if PntCount > 0 then
+    AddPoint(PolyArr[0].X, PolyArr[0].Y);
+end;
+
+class procedure TPolypointTrace.SimplifyPoly;
+var
+  I: Integer;
+  Finished: Boolean;
+  Thinness: Extended;
+begin
+  Finished := False;
+  while not Finished do
+  begin
+    I := 0;
+    Finished := true;
+    while I <= PntCount - 3 do
+    begin
+      Thinness := TriangleThinness(PolyArr[I].X, PolyArr[I].Y, PolyArr[I + 1].X,
+        PolyArr[I + 1].Y, PolyArr[I + 2].X, PolyArr[I + 2].Y);
+      if Thinness < Mju then
+      begin
+        DelPoint(I + 1);
+        Finished := False;
+      end;
+      Inc(I);
+    end;
+  end;
+end;
+
+class procedure TPolypointTrace.ApplyPolyPoint(aPolyPoint: TPolyPoint; aNum: Integer; aOrigin: PPoint);
+var
+  I: Integer;
+begin
+  for I := 0 to PntCount - 1 do
+  begin
+    aPolyPoint.AddPoint(aNum, PolyArr[I].X, PolyArr[i].Y, aOrigin);
+  end;
+end;
+
+procedure TPolyPoint.Clear;
+var
+  I: Integer;
+begin
+  for I := 0 to Count-1 do
+  begin
+    if Assigned(FPolygon[I]) then
+    begin
+      FreeNilObject(FPolygon[I]);
+    end;
+  end;
+  FPolygon := nil;
+  FCount := 0;
+end;
+
+constructor TPolyPoint.Create;
+begin
+  inherited;
+
+  FPolygon := nil;
+  FCount := 0;
+end;
+
+destructor TPolyPoint.Destroy;
+begin
+  Clear;
+
+  inherited;
+end;
+
+procedure TPolyPoint.Save(const aFilename: string);
+begin
+end;
+
+procedure TPolyPoint.Load(const aArchive: TArchive; const aFilename: string);
+begin
+end;
+
+procedure TPolyPoint.CopyFrom(const aPolyPoint: TPolyPoint);
+begin
+end;
+
+procedure TPolyPoint.AddPoint(const aNum: Integer; const aX, aY: Single; const aOrigin: PPoint);
+var
+  X,Y: Single;
+begin
+  X := aX;
+  Y := aY;
+
+  if aOrigin  <> nil then
+  begin
+    X := X-Round(aOrigin.X);
+    Y := Y-Round(aOrigin.Y);
+  end;
+
+  FPolygon[aNum].AddLocalPoint(X, Y, True);
+end;
+
+function  TPolyPoint.TraceFromTexture(const aTexture: TTexture; const aMju: Single; const aMaxStepBack, aAlphaThreshold: Integer; const aOrigin: PPoint): Integer;
+var
+  I: Integer;
+  W,H: Integer;
+begin
+  Inc(FCount);
+  SetLength(FPolygon, FCount);
+  I := FCount-1;
+  FPolygon[I] := TPolygon.Create;
+  aTexture.GetSize(@W, @H);
+  aTexture.Lock(nil);
+  TPolypointTrace.Init(aMju, aMaxStepBack, aAlphaThreshold);
+  TPolypointTrace.PrimaryTrace(aTexture, W, H);
+  TPolypointTrace.SimplifyPoly;
+  TPolypointTrace.ApplyPolyPoint(Self, I, aOrigin);
+  TPolypointTrace.Done;
+  aTexture.Unlock;
+  Result := I;
+end;
+
+procedure TPolyPoint.TraceFromSprite(const aSprite: TSprite; const aGroup: Integer; const aMju: Single; const aMaxStepBack, aAlphaThreshold: Integer; const aOrigin: PPoint);
+var
+  I: Integer;
+  Rect: TRect;
+  Tex: TTexture;
+  W,H: Single;
+begin
+  Clear;
+  FCount := aSprite.ImageCount(aGroup);
+  SetLength(FPolygon, Count);
+  for I := 0 to Count-1 do
+  begin
+    FPolygon[I] := TPolygon.Create;
+    Tex  :=  aSprite.ImageTexture(I, aGroup);
+    Rect :=  aSprite.ImageRect(I, aGroup);
+    W := Rect.width;
+    H := Rect.height;
+    Tex.Lock(@Rect);
+    TPolypointTrace.Init(aMju, aMaxStepBack, aAlphaThreshold);
+    TPolypointTrace.PrimaryTrace(Tex, Round(W), Round(H));
+    TPolypointTrace.SimplifyPoly;
+    TPolypointTrace.ApplyPolyPoint(Self, I, aOrigin);
+    TPolypointTrace.Done;
+    Tex.Unlock;
+  end;
+end;
+
+function  TPolyPoint.Count: Integer;
+begin
+  Result := FCount;
+end;
+
+procedure TPolyPoint.Render(const aNum: Integer; aX, aY, aScale, aAngle: Single; const aColor: TColor; const aFlipMode: TFlipMode; const aOrigin: PPoint);
+begin
+  if aNum >= FCount then Exit;
+  FPolygon[aNum].Render(aX, aY, aScale, aAngle, 1, aColor, aFlipMode, aOrigin);
+end;
+
+function  TPolyPoint.Collide(const aNum1, aGroup1: Integer; const aX1, aY1, aScale1, aAngle1: Single; const aFlipMode1: TFlipMode; const aOrigin1: PPoint; const aPolyPoint2: TPolyPoint; const aNum2, aGroup2: Integer; const aX2, aY2, aScale2, aAngle2: Single; const aFlipMode2: TFlipMode; const aOrigin2: PPoint; var aHitPos: TPoint): Boolean;
+var
+  L1,L2,IX,IY: Integer;
+  Cnt1, Cnt2: Integer;
+  Pos: array[0..3] of PPoint;
+  Poly1,Poly2: TPolygon;
+begin
+  Result := False;
+
+  if (aPolyPoint2 = nil) then Exit;
+
+  Poly1 := FPolygon[aNum1];
+  Poly2 := aPolyPoint2.Polygon(aNum2);
+
+  Poly1.Transform(aX1, aY1, aScale1, aAngle1, aFlipMode1, aOrigin1);
+  Poly2.Transform(aX2, aY2, aScale2, aAngle2, aFlipMode2, aOrigin2);
+
+  Cnt1 := Poly1.PointCount;
+  Cnt2 := Poly2.PointCount;
+
+  if Cnt1 < 2 then Exit;
+  if Cnt2 < 2 then Exit;
+
+  for L1 := 0 to Cnt1-2 do
+  begin
+    Pos[0] := Poly1.WorldPoint(L1);
+    Pos[1] := Poly1.WorldPoint(L1+1);
+
+    for L2 := 0 to Cnt2-2 do
+    begin
+
+      Pos[2] := Poly2.WorldPoint(L2);
+      Pos[3] := Poly2.WorldPoint(L2+1);
+      if LineIntersection(Round(Pos[0].X), Round(Pos[0].Y), Round(Pos[1].X), Round(Pos[1].Y), Round(Pos[2].X), Round(Pos[2].Y), Round(Pos[3].X), Round(Pos[3].Y), IX, IY) = liTrue then
+      begin
+        aHitPos.X := IX;
+        aHitPos.Y := IY;
+        Result := True;
+        Exit;
+      end;
+    end;
+  end;
+
+end;
+
+function  TPolyPoint.CollidePoint(const aNum, aGroup: Integer; const aX, aY, aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PPoint; var aPoint: TPoint): Boolean;
+var
+  L1,IX,IY: Integer;
+  Cnt1: Integer;
+  Pos: array[0..3] of PPoint;
+  Point2: PPoint;
+  Poly1: TPolygon;
+begin
+  Result := False;
+
+  Poly1 := FPolygon[aNum];
+  Poly1.Transform(aX, aY, aScale, aAngle, aFlipMode, aOrigin);
+  Cnt1 := Poly1.PointCount;
+  if Cnt1 < 2 then Exit;
+
+  Point2.X := aPoint.X + 1;
+  Point2.Y := aPoint.Y + 1;
+  Pos[2] := @aPoint;
+  Pos[3] := @Point2;
+
+  for L1 := 0 to Cnt1-2 do
+  begin
+    Pos[0] := Poly1.WorldPoint(L1);
+    Pos[1] := Poly1.WorldPoint(L1+1);
+
+    if LineIntersection(Round(Pos[0].X), Round(Pos[0].Y), Round(Pos[1].X), Round(Pos[1].Y), Round(Pos[2].X), Round(Pos[2].Y), Round(Pos[3].X), Round(Pos[3].Y), IX, IY) = liTrue then
+    begin
+      aPoint.X := IX;
+      aPoint.Y := IY;
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
+function  TPolyPoint.Polygon(const aNum: Integer): TPolygon;
+begin
+  Result := FPolygon[aNum];
+end;
+
+function  TPolyPoint.Valid(const aNum: Integer): Boolean;
+begin
+  Result := False;
+  if aNum >= FCount then Exit;
+  Result := Boolean(FPolygon[aNum].PointCount >= 2);
+end;
+
+constructor TSprite.Create;
+begin
+  inherited;
+
+  FTexture := nil;
+  FGroup := nil;
+  FPageCount := 0;
+  FGroupCount := 0;
+end;
+
+destructor TSprite.Destroy;
+begin
+  Clear;
+
+  inherited;
+end;
+
+procedure TSprite.Clear;
+var
+  I: Integer;
+begin
+    if FTexture <> nil then
+    begin
+      for I := 0 to FGroupCount-1 do
+      begin
+        FGroup[I].Image := nil;
+        FreeNilObject(FGroup[I].PolyPoint);
+      end;
+
+      for I := 0 to FPageCount-1 do
+      begin
+        if Assigned(FTexture[I]) then
+        begin
+          FreeNilObject(FTexture[I]);
+        end;
+      end;
+
+      FTexture := nil;
+      FGroup := nil;
+      FPageCount := 0;
+      FGroupCount := 0;
+    end;
+end;
+
+function  TSprite.LoadPage(const aArchive: TArchive; const aFilename: string; const aColorKey: PColor): Integer;
+begin
+  Result := FPageCount;
+  Inc(FPageCount);
+  SetLength(FTexture, FPageCount);
+  FTexture[Result] := TTexture.Create;
+  FTexture[Result].Load(aArchive, aFilename, aColorKey);
+end;
+
+function  TSprite.AddGroup: Integer;
+begin
+  Result := FGroupCount;
+  Inc(FGroupCount);
+  SetLength(FGroup, FGroupCount);
+  FGroup[Result].PolyPoint := TPolyPoint.Create;
+end;
+
+function  TSprite.AddImageFromRect(const aPage, aGroup: Integer; const aRect: TRect): Integer;
+begin
+  Result := FGroup[aGroup].Count;
+  Inc(FGroup[aGroup].Count);
+  SetLength(FGroup[aGroup].Image, FGroup[aGroup].Count);
+
+  FGroup[aGroup].Image[Result].Rect.X   := aRect.X;
+  FGroup[aGroup].Image[Result].Rect.Y   := aRect.Y;
+  FGroup[aGroup].Image[Result].Rect.Width := aRect.Width;
+  FGroup[aGroup].Image[Result].Rect.Height := aRect.Height;
+  FGroup[aGroup].Image[Result].Page   := aPage;
+end;
+
+function  TSprite.AddImageFromGrid(const aPage, aGroup, aGridX, aGridY, aGridWidth: Integer; aGridHeight: Integer): Integer;
+begin
+  Result := FGroup[aGroup].Count;
+  Inc(FGroup[aGroup].Count);
+  SetLength(FGroup[aGroup].Image, FGroup[aGroup].Count);
+
+  FGroup[aGroup].Image[Result].Rect.X      := aGridWidth  * aGridX;
+  FGroup[aGroup].Image[Result].Rect.Y      := aGridHeight * aGridY;
+  FGroup[aGroup].Image[Result].Rect.Width  := aGridWidth;
+  FGroup[aGroup].Image[Result].Rect.Height := aGridHeight;
+  FGroup[aGroup].Image[Result].Page        := aPage;
+end;
+
+function  TSprite.ImageCount(const aGroup: Integer): Integer;
+begin
+  Result := FGroup[aGroup].Count;
+end;
+
+function  TSprite.ImageWidth(const aNum, aGroup: Integer): Single;
+begin
+  Result := FGroup[aGroup].Image[aNum].Rect.Width;
+end;
+
+function  TSprite.ImageHeight(const aNum, aGroup: Integer): Single;
+begin
+  Result := FGroup[aGroup].Image[aNum].Rect.Height;
+end;
+
+function  TSprite.ImageTexture(const aNum, aGroup: Integer): TTexture;
+begin
+  Result := FTexture[FGroup[aGroup].Image[aNum].Page];
+end;
+
+procedure TSprite.RenderImage(const aNum, aGroup: Integer; const aX, aY, aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PPoint; const aColor: TColor; const aBlendMode: TBlendMode; const aRenderPolyPoint: Boolean=false);
+var
+  PageNum: Integer;
+  RectP  : PRect;
+  oxy    : TVector;
+begin
+  RectP   := @FGroup[aGroup].Image[aNum].Rect;
+  PageNum := FGroup[aGroup].Image[aNum].Page;
+  FTexture[PageNum].Render(RectP, aX, aY, aScale, aAngle, aFlipMode, aOrigin, aColor, aBlendMode);
+
+  if aRenderPolyPoint then
+  begin
+    oxy.x := 0;
+    oxy.y := 0;
+    if aOrigin <> nil then
+    begin
+      oxy.x := FGroup[aGroup].Image[aNum].Rect.Width;
+      oxy.y := FGroup[aGroup].Image[aNum].Rect.Height;
+
+      oxy.X := Round(oxy.X * aOrigin.X);
+      oxy.Y := Round(oxy.Y * aOrigin.Y);
+    end;
+   FGroup[aGroup].PolyPoint.Render(aNum, aX, aY, aScale, aAngle, YELLOW, aFlipMode, @oxy);
+  end;
+end;
+
+function  TSprite.ImageRect(const aNum, aGroup: Integer): TRect;
+begin
+  Result := FGroup[aGroup].Image[aNum].Rect;
+end;
+
+function  TSprite.GroupPolyPoint(const aGroup: Integer): Pointer;
+begin
+  Result := FGroup[aGroup].PolyPoint;
+end;
+
+procedure TSprite.GroupPolyPointTrace(const aGroup: Integer; const aMju: Single=6; const aMaxStepBack: Integer=12; const aAlphaThreshold: Integer=70; const aOrigin: PPoint=nil);
+begin
+  FGroup[aGroup].PolyPoint.TraceFromSprite(Self, aGroup, aMju, aMaxStepBack, aAlphaThreshold, aOrigin);
+end;
+
+function  TSprite.GroupPolyPointCollide(const aNum1, aGroup1: Integer; const aX1, aY1, aScale1, aAngle1: Single; const aFlipMode1: TFlipMode; const aOrigin1: PPoint; const aSprite2: TSprite; const aNum2, aGroup2: Integer; const aX2, aY2, aScale2, aAngle2: Single; const aFlipMode2: TFlipMode; const aOrigin2: PPoint; const aShrinkFactor: Single; var aHitPos: TPoint): Boolean;
+var
+  PP1,PP2: TPolyPoint;
+  Radius1: Single;
+  Radius2: Single;
+  Origini1, Origini2: TPoint;
+  Origini1P, Origini2P: PPoint;
+begin
+  Result := False;
+
+  if (aSprite2 = nil) then Exit;
+
+  PP1 := FGroup[aGroup1].PolyPoint;
+  PP2 := aSprite2.FGroup[aGroup2].PolyPoint;
+
+  if not PP1.Valid(aNum1) then Exit;
+  if not PP2.Valid(aNum2) then Exit;
+
+  Radius1 := (FGroup[aGroup1].Image[aNum1].Rect.Height + FGroup[aGroup1].Image[aNum1].Rect.Width) / 2;
+  Radius2 := (aSprite2.FGroup[aGroup2].Image[aNum2].Rect.Height + aSprite2.FGroup[aGroup2].Image[aNum2].Rect.Width) / 2;
+
+  if not RadiusOverlap(Radius1, aX1, aY1, Radius2, aX2, aY2, aShrinkFactor) then Exit;
+
+  Origini2.X := aSprite2.FGroup[aGroup2].Image[aNum2].Rect.Width;
+  Origini2.Y := aSprite2.FGroup[aGroup2].Image[aNum2].Rect.Height;
+
+  Origini1P  := nil;
+  if aOrigin1 <> nil then
+  begin
+    Origini1.X := Round(FGroup[aGroup1].Image[aNum1].Rect.Width  * aOrigin1.X);
+    Origini1.Y := Round(FGroup[aGroup1].Image[aNum1].Rect.Height * aOrigin1.Y);
+    Origini1P  := @Origini1;
+  end;
+
+  Origini2P  := nil;
+  if aOrigin2 <> nil then
+  begin
+    Origini2.X := Round(aSprite2.FGroup[aGroup2].Image[aNum2].Rect.Width * aOrigin2.X);
+    Origini2.Y := Round(aSprite2.FGroup[aGroup2].Image[aNum2].Rect.Height * aOrigin2.Y);
+    Origini2P  := @Origini2;
+  end;
+
+  Result := PP1.Collide(aNum1, aGroup1, aX1, aY1, aScale1, aAngle1, aFlipMode1, Origini1P, PP2, aNum2, aGroup2, aX2, aY2, aScale2, aAngle2, aFlipMode2, Origini2P, aHitPos);
+end;
+
+function  TSprite.GroupPolyPointCollidePoint(const aNum, aGroup: Integer; const aX, aY, aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PPoint; const aShrinkFactor: Single; var aPoint: TPoint): Boolean;
+var
+  PP1: TPolyPoint;
+  Radius1: Single;
+  Radius2: Single;
+  Origini1: TPoint;
+  Origini1P: PPoint;
+begin
+  Result := False;
+
+  PP1 := FGroup[aGroup].PolyPoint;
+
+  if not PP1.Valid(aNum) then Exit;
+
+  Radius1 := (FGroup[aGroup].Image[aNum].Rect.Height +  FGroup[aGroup].Image[aNum].Rect.Width) / 2;
+  Radius2 := 2;
+
+  if not RadiusOverlap(Radius1, aX, aY, Radius2, aPoint.X, aPoint.Y, aShrinkFactor) then Exit;
+
+  Origini1P  := nil;
+  if aOrigin <> nil then
+  begin
+    Origini1.X := Round(FGroup[aGroup].Image[aNum].Rect.Width  * aOrigin.X);
+    Origini1.Y := Round(FGroup[aGroup].Image[aNum].Rect.Height * aOrigin.Y);
+    Origini1P  := @Origini1;
+  end;
+
+  Result := PP1.CollidePoint(aNum, aGroup, aX, aY, aScale, aAngle, aFlipMode, Origini1P, aPoint);
+end;
+
+constructor TEntity.Create;
+begin
+  inherited
+end;
+
+destructor TEntity.Destroy;
+begin
+  inherited;
+end;
+
+procedure TEntity.Init(const aSprite: TSprite; const aGroup: Integer);
+begin
+  FSprite      := aSprite;
+  FGroup       := aGroup;
+  FFrame       := 0;
+  FFrameFPS    := 15;
+  FScale       := 1.0;
+  FAngle       := 0;
+  FAngleOffset := 0;
+  FColor       := WHITE;
+  FFlipMode    := fmNone;
+  FLoopFrame   := True;
+  FShrinkFactor:= 1.0;
+  FOrigin.X := 0.5;
+  FOrigin.Y := 0.5;
+  FRenderPolyPoint := False;
+  FBlendMode := bmBlend;
+  SetPosAbs(0, 0);
+  SetFrameRange(0, aSprite.ImageCount(FGroup)-1);
+  SetFrame(FFrame);
+end;
+
+procedure TEntity.SetFrameRange(const aFirst, aLast: Integer);
+begin
+  FFirstFrame := aFirst;
+  FLastFrame  := aLast;
+end;
+
+function  TEntity.NextFrame: Boolean;
+begin
+  Result := False;
+  if Game.Timer.FrameSpeed(FFrameTimer, FFrameFPS) then
+  begin
+    Inc(FFrame);
+    if FFrame > FLastFrame then
+    begin
+      if FLoopFrame then
+        FFrame := FFirstFrame
+      else
+        FFrame := FLastFrame;
+      Result := True;
+    end;
+  end;
+  SetFrame(FFrame);
+end;
+
+function  TEntity.PrevFrame: Boolean;
+begin
+  Result := False;
+  if Game.Timer.FrameSpeed(FFrameTimer, FFrameFPS) then
+  begin
+    Dec(FFrame);
+    if FFrame < FFirstFrame then
+    begin
+      if FLoopFrame then
+        FFrame := FLastFrame
+      else
+        FFrame := FFirstFrame;
+      Result := True;
+    end;
+  end;
+
+  SetFrame(FFrame);
+end;
+
+procedure TEntity.SetPosAbs(const aX, aY: Single);
+begin
+  FPos.X := aX;
+  FPos.Y := aY;
+  FDir.X := 0;
+  FDir.Y := 0;
+end;
+
+procedure TEntity.SetPosRel(const aX, aY: Single);
+begin
+  FPos.X := FPos.X + aX;
+  FPos.Y := FPos.Y + aY;
+  FDir.X := aX;
+  FDir.Y := aY;
+end;
+
+procedure TEntity.ScaleAbs(const aScale: Single);
+begin
+  FScale := aScale;
+  SetFrame(FFrame);
+end;
+
+procedure TEntity.ScaleRel(const aScale: Single);
+begin
+  FScale := FScale + aScale;
+  SetFrame(FFrame);
+end;
+
+procedure TEntity.SetAngleOffset(const aAngle: Single);
+var
+  LAngle: Single;
+begin
+  LAngle := aAngle + FAngleOffset;
+  ClipValuef(LAngle, 0, 360, True);
+  FAngleOffset := LAngle;
+end;
+
+procedure TEntity.RotateAbs(const aAngle: Single);
+var
+  LAngle: Single;
+begin
+  LAngle := aAngle;
+  ClipValuef(LAngle, 0, 360, True);
+  FAngle := LAngle;
+end;
+
+procedure TEntity.RotateRel(const aAngle: Single);
+var
+  LAngle: Single;
+begin
+  LAngle := aAngle + FAngle;
+  ClipValuef(LAngle, 0, 360, True);
+  FAngle := LAngle;
+end;
+
+function  TEntity.RotateToAngle(const aAngle, aSpeed: Single): Boolean;
+var
+  Step: Single;
+  Len : Single;
+  S   : Single;
+begin
+  Result := False;
+  Step := AngleDiff(FAngle, aAngle);
+  Len  := Sqrt(Step*Step);
+  if Len = 0 then
+    Exit;
+  S    := (Step / Len) * aSpeed;
+  FAngle := FAngle + S;
+  if SameValuef(Step, 0, S) then
+  begin
+    RotateAbs(aAngle);
+    Result := True;
+  end;
+end;
+
+function  TEntity.RotateToPos(const aX, aY, aSpeed: Single): Boolean;
+var
+  Angle: Single;
+  Step : Single;
+  Len  : Single;
+  S    : Single;
+  tmpPos  : TVector;
+begin
+  Result := False;
+  tmpPos.X  := aX;
+  tmpPos.Y  := aY;
+
+  Angle := -FPos.Angle(tmpPos);
+  Step := AngleDiff(FAngle, Angle);
+  Len := Sqrt(Step*Step);
+  if Len = 0 then Exit;
+  S := (Step / Len) * aSpeed;
+
+  if not SameValuef(Step, S, aSpeed) then
+    RotateRel(S)
+  else begin
+    RotateRel(Step);
+    Result := True;
+  end;
+end;
+
+function  TEntity.RotateToPosAt(const aSrcX, aSrcY, aDestX, aDestY, aSpeed: Single): Boolean;
+var
+  Angle: Single;
+  Step : Single;
+  Len  : Single;
+  S    : Single;
+  SPos : TVector;
+  DPos : TVector;
+begin
+  Result := False;
+  SPos.X := aSrcX;
+  SPos.Y := aSrcY;
+  DPos.X  := aDestX;
+  DPos.Y  := aDestY;
+
+  Angle := SPos.Angle(DPos);
+  Step := AngleDiff(FAngle, Angle);
+  Len := Sqrt(Step*Step);
+  if Len = 0 then Exit;
+  S := (Step / Len) * aSpeed;
+  if not SameValuef(Step, S, aSpeed) then
+    RotateRel(S)
+  else begin
+    RotateRel(Step);
+    Result := True;
+  end;
+end;
+
+procedure TEntity.Thrust(const aSpeed: Single);
+var
+  A, S: Single;
+begin
+  A := FAngle + 90.0;
+  ClipValuef(A, 0, 360, True);
+  S := -aSpeed;
+  FDir.x := AngleCos(Round(A)) * S;
+  FDir.y := AngleSin(Round(A)) * S;
+  FPos.x := FPos.x + FDir.x;
+  FPos.y := FPos.y + FDir.y;
+end;
+
+procedure TEntity.ThrustAngle(const aAngle, aSpeed: Single);
+var
+  A, S: Single;
+begin
+  A := aAngle;
+
+  ClipValuef(A, 0, 360, True);
+
+  S := -aSpeed;
+
+  FDir.x := AngleCos(Round(A)) * S;
+  FDir.y := AngleSin(Round(A)) * S;
+
+  FPos.x := FPos.x + FDir.x;
+  FPos.y := FPos.y + FDir.y;
+end;
+
+function  TEntity.ThrustToPos(const aThrustSpeed, aRotSpeed, aDestX, aDestY, aSlowdownDist, aStopDist, aStopSpeed, aStopSpeedEpsilon: Single; const aDeltaTime: Double): Boolean;
+var
+  Dist : Single;
+  Step : Single;
+  Speed: Single;
+  DestPos: TVector;
+  LStopDist: Single;
+begin
+  Result := False;
+
+  if aSlowdownDist <= 0 then Exit;
+  LStopDist := aStopDist;
+  if LStopDist < 0 then LStopDist := 0;
+
+  DestPos.X := aDestX;
+  DestPos.Y := aDestY;
+  Dist := FPos.Distance(DestPos);
+
+  Dist := Dist - LStopDist;
+
+  if  Dist > aSlowdownDist then
+    begin
+      Speed := aThrustSpeed;
+    end
+  else
+    begin
+      Step := (Dist/aSlowdownDist);
+      Speed := (aThrustSpeed * Step);
+      if SameValuef(Speed, LStopDist, aStopSpeedEpsilon) then
+      begin
+        Speed := 0;
+        Result := True;
+      end;
+    end;
+
+  if RotateToPos(aDestX, aDestY, aRotSpeed*aDeltaTime) then
+  begin
+    Thrust(Speed*aDeltaTime);
+  end;
+
+end;
+
+function  TEntity.Visible(const aVirtualX, aVirtualY: Single): Boolean;
+var
+  HW,HH: Single;
+  vp: TRect;
+  X,Y: Single;
+begin
+  Result := False;
+
+  HW := FWidth / 2;
+  HH := FHeight / 2;
+
+  vp := Game.Window.GetViewport;
+
+  vp.Width := vp.Width-1;
+  vp.Height := vp.Height-1;
+
+  X := FPos.X - aVirtualX;
+  Y := FPos.Y - aVirtualY;
+
+  if X > (vp.Width + HW) then Exit;
+  if X < -HW    then Exit;
+  if Y > (vp.Height + HH) then Exit;
+  if Y < -HH    then Exit;
+
+  Result := True;
+end;
+
+function  TEntity.FullyVisible(const aVirtualX, aVirtualY: Single): Boolean;
+var
+  HW,HH: Single;
+  vp: TRect;
+  X,Y: Single;
+begin
+  Result := False;
+
+  HW := FWidth / 2;
+  HH := FHeight / 2;
+
+  vp := Game.Window.GetViewport;
+
+  vp.Width := vp.Width-1;
+  vp.Height := vp.Height-1;
+
+  X := FPos.X - aVirtualX;
+  Y := FPos.Y - aVirtualY;
+
+  if X > (vp.Width - HW) then Exit;
+  if X <  HW       then Exit;
+  if Y > (vp.Height - HH) then Exit;
+  if Y <  HH       then Exit;
+
+  Result := True;
+end;
+
+function  TEntity.Overlap(const aX, aY, aRadius,
+  aShrinkFactor: Single): Boolean;
+var
+  Dist: Single;
+  R1  : Single;
+  R2  : Single;
+  V0,V1: TVector;
+begin
+  R1  := FRadius * aShrinkFactor;
+  R2  := aRadius * aShrinkFactor;
+
+  V0.X := FPos.X;
+  V0.Y := FPos.Y;
+
+  V1.x := aX;
+  V1.y := aY;
+
+  Dist := V0.Distance(V1);
+
+  if (Dist < R1) or (Dist < R2) then
+    Result := True
+  else
+   Result := False;
+end;
+
+function  TEntity.Overlap(const aEntity: TEntity): Boolean;
+begin
+  Result := aEntity.Overlap(FPos.X, FPos.Y, FRadius, FShrinkFactor);
+end;
+
+procedure TEntity.Render(const aVirtualX, aVirtualY: Single);
+var
+  X,Y: Integer;
+begin
+  X := Round(FPos.X - aVirtualX);
+  Y := Round(FPos.Y - aVirtualY);
+  FSprite.RenderImage(FFrame, FGroup, X, Y, FScale, FAngle, FFlipMode, @FOrigin, FColor, FBlendMode, FRenderPolyPoint);
+end;
+
+procedure TEntity.RenderAt(const aX, aY: Single);
+begin
+  FSprite.RenderImage(FFrame, FGroup, aX, aY, FScale, FAngle, FFlipMode, @FOrigin, FColor,  FBlendMode, FRenderPolyPoint);
+end;
+
+procedure TEntity.TracePolyPoint(const aMju: Single=6; const aMaxStepBack: Integer=12; const aAlphaThreshold: Integer=70; const aOrigin: PPoint=nil);
+begin
+  FSprite.GroupPolyPointTrace(FGroup, aMju, aMaxStepBack, aAlphaThreshold, aOrigin);
+end;
+
+function  TEntity.CollidePolyPoint(const aEntity: TEntity; var aHitPos: TPoint): Boolean;
+var
+  ShrinkFactor: Single;
+begin
+  ShrinkFactor := (FShrinkFactor + aEntity.ShrinkFactor) / 2.0;
+  Result := FSprite.GroupPolyPointCollide(FFrame, FGroup, FPos.X, FPos.Y, FScale, FAngle, FFlipMode, @FOrigin, aEntity.FSprite, aEntity.FFrame, aEntity.FGroup, aEntity.FPos.X, aEntity.FPos.Y, aEntity.FScale, aEntity.FAngle, aEntity.FFlipMode, @aEntity.FOrigin, ShrinkFactor, aHitPos);
+end;
+
+function  TEntity.CollidePolyPointPoint(var aPoint: TPoint): Boolean;
+var
+  ShrinkFactor: Single;
+begin
+  ShrinkFactor := FShrinkFactor;
+  Result := FSprite.GroupPolyPointCollidePoint( FFrame, FGroup, FPos.X, FPos.Y, FScale, FAngle, FFlipMode, @FOrigin, ShrinkFactor, aPoint);
+end;
+
+function  TEntity.Sprite: TSprite;
+begin
+  Result := FSprite;
+end;
+
+function  TEntity.Group: Integer;
+begin
+  Result := FGroup;
+end;
+
+function  TEntity.Frame: Integer;
+begin
+  Result := FFrame;
+end;
+
+procedure TEntity.SetFrame(const aFrame: Integer);
+var
+  W,H,R: Single;
+begin
+  if aFrame > FSprite.ImageCount(FGroup)-1  then
+    FFrame := FSprite.ImageCount(FGroup)-1
+  else
+    FFrame := aFrame;
+
+  W := FSprite.ImageWidth(FFrame, FGroup);
+  H := FSprite.ImageHeight(FFrame, FGroup);
+
+  R := (W + H) / 2;
+
+  FWidth  := W * FScale;
+  FHeight := H * FScale;
+  FRadius := R * FScale;
+end;
+
+function  TEntity.FrameFPS: Single;
+begin
+  Result := FFrameFPS;
+end;
+
+procedure TEntity.SetFrameFPS(const aFrameFPS: Single);
+begin
+  FFrameFPS := aFrameFPS;
+end;
+
+function  TEntity.FirstFrame: Integer;
+begin
+  Result := FFirstFrame;
+end;
+
+function  TEntity.LastFrame: Integer;
+begin
+  Result := FLastFrame;
+end;
+
+function  TEntity.Pos: TVector;
+begin
+  Result := FPos;
+end;
+
+function  TEntity.Dir: TVector;
+begin
+  Result := FDir;
+end;
+
+function  TEntity.Scale: Single;
+begin
+  Result := FScale;
+end;
+
+function  TEntity.Angle: Single;
+begin
+  Result := FAngle;
+end;
+
+function  TEntity.AngleOffset: Single;
+begin
+  Result := FAngleOffset;
+end;
+
+function  TEntity.Color: TColor;
+begin
+ Result := FColor;
+end;
+
+procedure TEntity.SetColor(const aColor: TColor);
+begin
+  FColor := aColor;
+end;
+
+function  TEntity.FlipMode: TFlipMode;
+begin
+  Result := FFlipMode;
+end;
+
+procedure TEntity.SetFlipMode(const aFlipMode: TFlipMode);
+begin
+  FFlipMode := aFlipMode;
+end;
+
+function  TEntity.LoopFrame: Boolean;
+begin
+  Result := FLoopFrame;
+end;
+
+procedure TEntity.SetLoopFrame(const aLoop: Boolean);
+begin
+  FLoopFrame := aLoop;
+end;
+
+function  TEntity.Width: Single;
+begin
+  Result := FWidth;
+end;
+
+function  TEntity.Height: Single;
+begin
+  Result := FHeight;
+end;
+
+function  TEntity.Radius: Single;
+begin
+  Result := FRadius;
+end;
+
+function  TEntity.ShrinkFactor: Single;
+begin
+  Result := FShrinkFactor;
+end;
+
+procedure TEntity.SetShrinkFactor(const aShrinkFactor: Single);
+begin
+  FShrinkFactor := aShrinkFactor;
+end;
+
+procedure TEntity.SetRenderPolyPoint(const aValue: Boolean);
+begin
+  FRenderPolyPoint := aValue;
+end;
+
+class function TEntity.CreateEntity(const aSprite: TSprite; const aGroup: Integer): TEntity;
+begin
+  Result := TEntity.Create;
+  if not Assigned(Result) then Exit;
+  Result.Init(aSprite, aGroup);
+end;
 
 {$ENDREGION}
 
@@ -26378,6 +28003,7 @@ begin
               end;
 
               FInput.Update(@LEvent);
+              FInput.GetMouseInfo(@FMousePos, nil);
             end;
 
             if Settings.WindowUpdateOnLostFocus then
@@ -26473,6 +28099,8 @@ begin
   FDefaultFont := TFont.Create;
   FDefaultFont.LoadDefault(Settings.DefaultFontSize, Settings.DefaultFontGlyphs);
 
+  FSprite := TSprite.Create;
+
   Hud.SetPos(FSettings.HudPosX, FSettings.HudPosY);
   Hud.SetLineSpace(FSettings.HudLineSpace);
   Hud.SetTextItemPadWidth(FSettings.HudTextItemPadWidth);
@@ -26487,6 +28115,8 @@ end;
 
 procedure TGame.OnUnapplySettings;
 begin
+  FreeNilObject(FSprite);
+
 
   FreeNilObject(FDefaultFont);
 
