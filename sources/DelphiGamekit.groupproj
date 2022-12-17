@@ -42,7 +42,13 @@
         <Projects Include="..\examples\screenshake.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="..\examples\actor_spawn.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="..\examples\demo_elastic.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\examples\demo_chainaction.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -170,6 +176,15 @@
     <Target Name="screenshake:Make">
         <MSBuild Projects="..\examples\screenshake.dproj" Targets="Make"/>
     </Target>
+    <Target Name="actor_spawn">
+        <MSBuild Projects="..\examples\actor_spawn.dproj"/>
+    </Target>
+    <Target Name="actor_spawn:Clean">
+        <MSBuild Projects="..\examples\actor_spawn.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="actor_spawn:Make">
+        <MSBuild Projects="..\examples\actor_spawn.dproj" Targets="Make"/>
+    </Target>
     <Target Name="demo_elastic">
         <MSBuild Projects="..\examples\demo_elastic.dproj"/>
     </Target>
@@ -179,14 +194,23 @@
     <Target Name="demo_elastic:Make">
         <MSBuild Projects="..\examples\demo_elastic.dproj" Targets="Make"/>
     </Target>
+    <Target Name="demo_chainaction">
+        <MSBuild Projects="..\examples\demo_chainaction.dproj"/>
+    </Target>
+    <Target Name="demo_chainaction:Clean">
+        <MSBuild Projects="..\examples\demo_chainaction.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="demo_chainaction:Make">
+        <MSBuild Projects="..\examples\demo_chainaction.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="DGTools;speech_play;font_unicode;video_play;video_chained_play;texture_render;texture_colorkey;texture_tiled;texture_parallax;music_play;entity_render;entity_collision;screenshake;demo_elastic"/>
+        <CallTarget Targets="DGTools;speech_play;font_unicode;video_play;video_chained_play;texture_render;texture_colorkey;texture_tiled;texture_parallax;music_play;entity_render;entity_collision;screenshake;actor_spawn;demo_elastic;demo_chainaction"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="DGTools:Clean;speech_play:Clean;font_unicode:Clean;video_play:Clean;video_chained_play:Clean;texture_render:Clean;texture_colorkey:Clean;texture_tiled:Clean;texture_parallax:Clean;music_play:Clean;entity_render:Clean;entity_collision:Clean;screenshake:Clean;demo_elastic:Clean"/>
+        <CallTarget Targets="DGTools:Clean;speech_play:Clean;font_unicode:Clean;video_play:Clean;video_chained_play:Clean;texture_render:Clean;texture_colorkey:Clean;texture_tiled:Clean;texture_parallax:Clean;music_play:Clean;entity_render:Clean;entity_collision:Clean;screenshake:Clean;actor_spawn:Clean;demo_elastic:Clean;demo_chainaction:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="DGTools:Make;speech_play:Make;font_unicode:Make;video_play:Make;video_chained_play:Make;texture_render:Make;texture_colorkey:Make;texture_tiled:Make;texture_parallax:Make;music_play:Make;entity_render:Make;entity_collision:Make;screenshake:Make;demo_elastic:Make"/>
+        <CallTarget Targets="DGTools:Make;speech_play:Make;font_unicode:Make;video_play:Make;video_chained_play:Make;texture_render:Make;texture_colorkey:Make;texture_tiled:Make;texture_parallax:Make;music_play:Make;entity_render:Make;entity_collision:Make;screenshake:Make;actor_spawn:Make;demo_elastic:Make;demo_chainaction:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

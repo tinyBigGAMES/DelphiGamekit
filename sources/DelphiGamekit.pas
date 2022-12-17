@@ -12489,15 +12489,10 @@ type
 
   TCaptureConsoleOutputEvent = procedure(aSender: Pointer; aLine: string);
 
-  PPoint = ^TPoint;
-  TPoint = record
-    X,Y,Z: Single;
-    class operator Initialize (out aDest: TPoint);
-    class operator Implicit(aValue: TPoint): SDL_Point;
-    class operator Implicit(aValue: TPoint): SDL_FPoint;
-    class operator Implicit(aValue: SDL_Point): TPoint;
-    class operator Implicit(aValue: SDL_FPoint): TPoint;
-    constructor Create(const aX, aY, aZ: Single);
+  PRange = ^TRange;
+  TRange = record
+    MinX, MinY, MaxX, MaxY: Single;
+    class operator Initialize (out aDest: TRange);
   end;
 
   PVector = ^TVector;
@@ -12526,6 +12521,18 @@ type
     procedure DivideBy(aValue: Single); inline;
     function  Project(aVector: TVector): TVector; inline;
     procedure Negate; inline;
+  end;
+
+  PPoint = ^TPoint;
+  TPoint = record
+    X,Y,Z: Single;
+    class operator Initialize (out aDest: TPoint);
+    class operator Implicit(aValue: TPoint): SDL_Point;
+    class operator Implicit(aValue: TPoint): SDL_FPoint;
+    class operator Implicit(aValue: SDL_Point): TPoint;
+    class operator Implicit(aValue: SDL_FPoint): TPoint;
+    class operator Implicit(aValue: TVector): TPoint;
+    constructor Create(const aX, aY, aZ: Single);
   end;
 
   PRect = ^TRect;
@@ -13935,6 +13942,195 @@ type
 
 {$REGION ' DelphiGamekit.Game '}
 type
+  TActorList = class;
+  TAIStateMachine = class;
+
+  TActorAttributeSet = set of Byte;
+
+  PActorMessage = ^TActorMessage;
+  TActorMessage = record
+    Id: Integer;
+    Data: Pointer;
+    DataSize: Cardinal;
+  end;
+
+  TActor = class(TBaseObject)
+  protected
+    FOwner: TActorList;
+    FPrev: TActor;
+    FNext: TActor;
+    FAttributes: TActorAttributeSet;
+    FTerminated: Boolean;
+    FActorList: TActorList;
+    FCanCollide: Boolean;
+    FChildren: TActorList;
+    function GetAttribute(aIndex: Byte): Boolean;
+    procedure SetAttribute(aIndex: Byte; aValue: Boolean);
+    function GetAttributes: TActorAttributeSet;
+    procedure SetAttributes(aValue: TActorAttributeSet);
+  public
+    property Owner: TActorList read FOwner write FOwner;
+    property Prev: TActor read FPrev write FPrev;
+    property Next: TActor read FNext write FNext;
+    property Attribute[aIndex: Byte]: Boolean read GetAttribute write SetAttribute;
+    property Attributes: TActorAttributeSet read GetAttributes  write SetAttributes;
+    property Terminated: Boolean read FTerminated write FTerminated;
+    property Children: TActorList read FChildren write FChildren;
+    property ActorList: TActorList read FActorList write FActorList;
+    property CanCollide: Boolean read FCanCollide write FCanCollide;
+    procedure OnVisit(const aSender: TActor; const aEventId: Integer; var aDone: Boolean); virtual;
+    procedure OnUpdate(const aDeltaTime: Double); virtual;
+    procedure OnRender; virtual;
+    function OnMessage(const aMsg: PActorMessage): TActor; virtual;
+    procedure OnCollide(const aActor: TActor; const aHitPos: TPoint); virtual;
+    constructor Create; override;
+    destructor Destroy; override;
+    function AttributesAreSet(const aAttrs: TActorAttributeSet): Boolean;
+    function Collide(const aActor: TActor; var aHitPos: TPoint): Boolean; virtual;
+    function Overlap(const aX, aY, aRadius, aShrinkFactor: Single): Boolean; overload; virtual;
+    function Overlap(const aActor: TActor): Boolean; overload; virtual;
+  end;
+
+  TActorList = class(TBaseObject)
+  protected
+    FHead: TActor;
+    FTail: TActor;
+    FCount: Integer;
+  public
+    property Count: Integer read FCount;
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure Clean;
+    procedure Add(const aActor: TActor);
+    procedure Remove(const aActor: TActor; const aDispose: Boolean);
+    procedure Clear(const aAttrs: TActorAttributeSet);
+    procedure ForEach(const aSender: TActor; const aAttrs: TActorAttributeSet; const aEventId: Integer; var aDone: Boolean);
+    procedure Update(const aAttrs: TActorAttributeSet; const aDeltaTime: Double);
+    procedure Render(const aAttrs: TActorAttributeSet);
+    function SendMessage(const aAttrs: TActorAttributeSet; const aMsg: PActorMessage; const aBroadcast: Boolean): TActor;
+    procedure CheckCollision(const aAttrs: TActorAttributeSet; const aActor: TActor);
+  end;
+
+  TAIState = class(TBaseObject)
+  protected
+    FOwner: TObject;
+    FChildren: TActorList;
+    FStateMachine: TAIStateMachine;
+  public
+    property Owner: TObject read FOwner write FOwner;
+    property Children: TActorList read FChildren;
+    property StateMachine: TAIStateMachine read FStateMachine write FStateMachine;
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure OnEnter; virtual;
+    procedure OnExit; virtual;
+    procedure OnUpdate(const aDeltaTime: Double); virtual;
+    procedure OnRender; virtual;
+  end;
+
+  TAIStateMachine = class(TBaseObject)
+  protected
+    FOwner: TActor;
+    FCurrentState: TAIState;
+    FGlobalState: TAIState;
+    FPreviousState: TAIState;
+    FStateList: TObjectList;
+    FStateIndex: Integer;
+    procedure ChangeStateObj(aValue: TAIState);
+    procedure SetCurrentStateObj(aValue: TAIState);
+    procedure RemoveStateObj(aState: TAIState);
+    procedure SetGlobalStateObj(aValue: TAIState);
+    procedure SetPreviousStateObj(aValue: TAIState);
+    function GetStateCount: Integer;
+    function GetStateIndex: Integer;
+    function GetStates(aIndex: Integer): TAIState;
+    function GetCurrentState: Integer;
+    procedure SetCurrentState(aIndex: Integer);
+    function GetGlobalState: Integer;
+    procedure SetGlobalState(aIndex: Integer);
+    function GetPreviousState: Integer;
+    procedure SetPreviousState(aIndex: Integer);
+  public
+    property Owner: TActor read FOwner write FOwner;
+    property StateCount: Integer read GetStateCount;
+    property StateIndex: Integer read GetStateIndex;
+    property States[aIndex: Integer]: TAIState read GetStates;
+    property CurrentState: Integer read GetCurrentState write SetCurrentState;
+    property GlobalState: Integer read GetGlobalState write SetGlobalState;
+    property PreviousState: Integer read GetPreviousState write SetPreviousState;
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure Update(const aDeltaTime: Double);
+    procedure Render;
+    procedure RevertToPreviousState;
+    procedure ClearStates;
+    function AddState(const aState: TAIState): Integer;
+    procedure RemoveState(const aIndex: Integer);
+    procedure ChangeState(const aIndex: Integer);
+    function PrevState(const aWrap: Boolean): Integer;
+    function NextState(const aWrap: Boolean): Integer;
+  end;
+
+  TAIActor = class(TActor)
+  protected
+    FStateMachine: TAIStateMachine;
+  public
+    property StateMachine: TAIStateMachine read FStateMachine write FStateMachine;
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure OnUpdate(const aDeltaTime: Double); override;
+    procedure OnRender; override;
+  end;
+
+  TActorSceneEvent = procedure(const aSceneNum: Integer) of object;
+
+  TActorScene = class(TBaseObject)
+  protected
+    FLists: array of TActorList;
+    FCount: Integer;
+    function GetList( aIndex: Integer): TActorList;
+    function GetCount: Integer;
+  public
+    property Lists[aIndex: Integer]: TActorList read GetList; default;
+    property Count: Integer read GetCount;
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure Alloc(const aNum: Integer);
+    procedure Dealloc;
+    procedure Clean(const aIndex: Integer);
+    procedure Clear(const aIndex: Integer; const aAttrs: TActorAttributeSet);
+    procedure ClearAll;
+    procedure Update(const aAttrs: TActorAttributeSet; const aDeltaTime: Double);
+    procedure Render(const aAttrs: TActorAttributeSet; const aBefore: TActorSceneEvent; const aAfter: TActorSceneEvent);
+    function SendMessage(const aAttrs: TActorAttributeSet; const aMsg: PActorMessage; const aBroadcast: Boolean): TActor;
+  end;
+
+  TEntityActor = class(TActor)
+  protected
+    FEntity: TEntity;
+  public
+    property Entity: TEntity read FEntity write FEntity;
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure Init(const aSprite: TSprite; const aGroup: Integer); virtual;
+    function Collide(const aActor: TActor; var aHitPos: TPoint): Boolean; override;
+    function Overlap(const aX, aY, aRadius, aShrinkFactor: Single): Boolean; override;
+    function Overlap(const aActor: TActor): Boolean; override;
+    procedure OnRender; override;
+  end;
+
+  TAIEntityActor = class(TEntityActor)
+  protected
+    FStateMachine: TAIStateMachine;
+  public
+    property StateMachine: TAIStateMachine read FStateMachine;
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure OnUpdate(const aDeltaTime: Double); override;
+    procedure OnRender; override;
+  end;
+
+type
 
   TGame = class(TBaseObject)
   protected type
@@ -13972,6 +14168,9 @@ type
       TimerUpdateRate: Cardinal;
       TimerFixedUpdateRate: Cardinal;
 
+      SceneCount: Integer;
+      SceneActorAttrs: TActorAttributeSet;
+
     end;
   protected
     FReady: Boolean;
@@ -13993,6 +14192,7 @@ type
     FArchive: TArchive;
     FDefaultFont: TFont;
     FSprite: TSprite;
+    FScene: TActorScene;
     FSettings: TSettings;
     FMousePos: TPoint;
   public
@@ -14013,6 +14213,7 @@ type
     property Archive: TArchive read FArchive;
     property DefaultFont: TFont read FDefaultFont;
     property Sprite: TSprite read FSprite;
+    property Scene: TActorScene read FScene;
     property MousePos: TPoint read FMousePos;
 
     constructor Create; override;
@@ -14042,6 +14243,8 @@ type
     procedure OnBuildArchiveProgress(const aFilename: string; const aProgress: Cardinal; const aNewFile: Boolean); virtual;
     procedure OnSpeechWord(const aWord, aText: string); virtual;
     procedure OnVideoStatus(const aStatus: TVideoStatus; const aFilename: string); virtual;
+    procedure OnBeforeRenderScene(const aSceneNum: Integer); virtual;
+    procedure OnAfterRenderScene(const aSceneNum: Integer); virtual;
   end;
 
   TGameClass = class of TGame;
@@ -21104,11 +21307,26 @@ begin
   Result.Y := aValue.y;
 end;
 
+class operator TPoint.Implicit(aValue: TVector): TPoint;
+begin
+  Result.X := aValue.X;
+  Result.Y := aValue.Y;
+  Result.Z := aValue.Z;
+end;
+
 constructor TPoint.Create(const aX, aY, aZ: Single);
 begin
   X := aX;
   Y := aY;
   Z := aZ;
+end;
+
+class operator TRange.Initialize (out aDest: TRange);
+begin
+  aDest.MinX := 0;
+  aDest.MinY := 0;
+  aDest.MaxX := 0;
+  aDest.MaxY := 0;
 end;
 
 class operator TVector.Initialize (out aDest: TVector);
@@ -27819,6 +28037,953 @@ end;
 {$ENDREGION}
 
 {$REGION ' DelphiGamekit.Game '}
+function TActor.GetAttribute(aIndex: Byte): Boolean;
+begin
+  Result := Boolean(aIndex in FAttributes);
+end;
+
+procedure TActor.SetAttribute(aIndex: Byte; aValue: Boolean);
+begin
+  if aValue then
+    Include(FAttributes, aIndex)
+  else
+    Exclude(FAttributes, aIndex);
+end;
+
+function TActor.GetAttributes: TActorAttributeSet;
+begin
+  Result := FAttributes;
+end;
+
+procedure TActor.SetAttributes(aValue: TActorAttributeSet);
+begin
+  FAttributes := aValue;
+end;
+
+procedure TActor.OnVisit(const aSender: TActor; const aEventId: Integer; var aDone: Boolean);
+begin
+  aDone := False;
+end;
+
+procedure TActor.OnUpdate(const aDeltaTime: Double);
+begin
+  FChildren.Update([], aDeltaTime);
+end;
+
+procedure TActor.OnRender;
+begin
+  FChildren.Render([]);
+end;
+
+function TActor.OnMessage(const aMsg: PActorMessage): TActor;
+begin
+  Result := nil;
+end;
+
+procedure TActor.OnCollide(const aActor: TActor; const aHitPos: TPoint);
+begin
+end;
+
+constructor TActor.Create;
+begin
+  inherited;
+  FOwner := nil;
+  FPrev := nil;
+  FNext := nil;
+  FAttributes := [];
+  FTerminated := False;
+  FActorList := nil;
+  FCanCollide := False;
+  FChildren := TActorList.Create;
+end;
+
+destructor TActor.Destroy;
+begin
+  FreeAndNil(FChildren);
+  inherited;
+end;
+
+function TActor.AttributesAreSet(const aAttrs: TActorAttributeSet): Boolean;
+var
+  A: Byte;
+begin
+  Result := False;
+  for A in aAttrs do
+  begin
+    if A in FAttributes then
+    begin
+      Result := True;
+      Break;
+    end;
+  end;
+end;
+
+function TActor.Collide(const aActor: TActor; var aHitPos: TPoint): Boolean;
+begin
+  Result := False;
+end;
+
+function TActor.Overlap(const aX, aY, aRadius, aShrinkFactor: Single): Boolean;
+begin
+  Result := False;
+end;
+
+function TActor.Overlap(const aActor: TActor): Boolean;
+begin
+  Result := False;
+end;
+
+constructor TAIState.Create;
+begin
+  inherited;
+  FStateMachine := nil;
+  FOwner := nil;
+  FChildren := TActorList.Create;
+end;
+
+destructor TAIState.Destroy;
+begin
+  FreeAndNil(FChildren);
+  inherited;
+end;
+
+procedure TAIState.OnEnter;
+begin
+end;
+
+procedure TAIState.OnExit;
+begin
+end;
+
+procedure TAIState.OnUpdate(const aDeltaTime: Double);
+begin
+  FChildren.Update([], aDeltaTime);
+end;
+
+procedure TAIState.OnRender;
+begin
+  FChildren.Render([]);
+end;
+
+procedure TAIStateMachine.ChangeStateObj(aValue: TAIState);
+begin
+  if not Assigned(aValue) then Exit;
+
+  FPreviousState := FCurrentState;
+
+  if Assigned(FCurrentState) then FCurrentState.OnExit;
+
+  FCurrentState := aValue;
+  FCurrentState.Owner := FOwner;
+
+  FCurrentState.OnEnter;
+end;
+
+procedure TAIStateMachine.SetCurrentStateObj(aValue: TAIState);
+begin
+  FCurrentState := aValue;
+  FCurrentState.Owner := FOwner;
+  if Assigned(FCurrentState) then
+  begin
+    FCurrentState.OnEnter;
+  end;
+end;
+
+procedure TAIStateMachine.RemoveStateObj(aState: TAIState);
+begin
+  FStateList.Remove(aState);
+  if FStateList.Count < 1 then
+    FStateIndex := -1
+  else
+    FStateIndex := 0;
+end;
+
+procedure TAIStateMachine.SetGlobalStateObj(aValue: TAIState);
+begin
+  FGlobalState := aValue;
+  FGlobalState.Owner := FOwner;
+  if Assigned(FGlobalState) then
+  begin
+    FGlobalState.OnEnter;
+  end;
+end;
+
+procedure TAIStateMachine.SetPreviousStateObj(aValue: TAIState);
+begin
+  FPreviousState := aValue;
+  FPreviousState.Owner := FOwner;
+end;
+
+function TAIStateMachine.GetStateCount: Integer;
+begin
+  Result := FStateList.Count;
+end;
+
+function TAIStateMachine.GetStateIndex: Integer;
+begin
+  Result := FStateIndex;
+end;
+
+function TAIStateMachine.GetStates(aIndex: Integer): TAIState;
+begin
+  Result := nil;
+  if (aIndex < 0) or (aIndex > FStateList.Count - 1) then
+    Exit;
+  Result := TAIState(FStateList.Items[aIndex]);
+end;
+
+function TAIStateMachine.GetCurrentState: Integer;
+begin
+  Result := FStateList.IndexOf(FCurrentState);
+end;
+
+procedure TAIStateMachine.SetCurrentState(aIndex: Integer);
+var
+  obj: TAIState;
+begin
+  obj := GetStates(aIndex);
+  if Assigned(obj) then
+  begin
+    SetCurrentStateObj(obj);
+    FStateIndex := aIndex;
+  end;
+end;
+
+function TAIStateMachine.GetGlobalState: Integer;
+begin
+  Result := FStateList.IndexOf(FGlobalState);
+end;
+
+procedure TAIStateMachine.SetGlobalState(aIndex: Integer);
+var
+  obj: TAIState;
+begin
+  obj := GetStates(aIndex);
+  if Assigned(obj) then
+  begin
+    SetGlobalStateObj(obj);
+  end;
+end;
+
+function TAIStateMachine.GetPreviousState: Integer;
+begin
+  Result := FStateList.IndexOf(FPreviousState);
+end;
+
+procedure TAIStateMachine.SetPreviousState(aIndex: Integer);
+var
+  obj: TAIState;
+begin
+  obj := GetStates(aIndex);
+  if Assigned(obj) then
+  begin
+    SetPreviousStateObj(obj);
+  end;
+end;
+
+constructor TAIStateMachine.Create;
+begin
+  inherited;
+  FOwner := nil;
+  FCurrentState := nil;
+  FGlobalState := nil;
+  FPreviousState := nil;
+  FStateList := FStateList.Create(True);
+  FStateIndex := -1;
+end;
+
+destructor TAIStateMachine.Destroy;
+begin
+  FreeAndNil(FStateList);
+  inherited;
+end;
+
+procedure TAIStateMachine.Update(const aDeltaTime: Double);
+begin
+  if Assigned(FGlobalState) then
+    FGlobalState.OnUpdate(aDeltaTime);
+  if Assigned(FCurrentState) then
+    FCurrentState.OnUpdate(aDeltaTime);
+end;
+
+procedure TAIStateMachine.Render;
+begin
+  if Assigned(FGlobalState) then
+    FGlobalState.OnRender;
+  if Assigned(FCurrentState) then
+    FCurrentState.OnRender;
+end;
+
+procedure TAIStateMachine.RevertToPreviousState;
+begin
+  ChangeStateObj(FPreviousState);
+end;
+
+procedure TAIStateMachine.ClearStates;
+begin
+  FStateList.Clear;
+  FStateIndex := -1;
+end;
+
+function TAIStateMachine.AddState(const aState: TAIState): Integer;
+begin
+  Result := -1;
+  if FStateList.IndexOf(aState) = -1 then
+  begin
+    Result := FStateList.Add(aState);
+    if GetStateCount <= 1 then
+    begin
+      SetCurrentState(Result);
+    end;
+    aState.StateMachine := self;
+  end;
+end;
+
+procedure TAIStateMachine.RemoveState(const aIndex: Integer);
+var
+  obj: TAIState;
+begin
+  if (aIndex < 0) or (aIndex > FStateList.Count - 1) then
+    Exit;
+  obj := TAIState(FStateList.Items[aIndex]);
+  RemoveStateObj(obj);
+end;
+
+procedure TAIStateMachine.ChangeState(const aIndex: Integer);
+var
+  obj: TAIState;
+begin
+  obj := GetStates(aIndex);
+  if Assigned(obj) then
+  begin
+    ChangeStateObj(obj);
+    FStateIndex := aIndex;
+  end;
+end;
+
+function TAIStateMachine.PrevState(const aWrap: Boolean): Integer;
+var
+  I: Integer;
+begin
+  Result := -1;
+  if FStateList.Count < 2 then
+    Exit;
+
+  I := FStateIndex;
+  Dec(I);
+  if I < 0 then
+  begin
+    if not aWrap then
+      Exit;
+    I := FStateList.Count - 1;
+  end;
+  ChangeState(I);
+end;
+
+function TAIStateMachine.NextState(const aWrap: Boolean): Integer;
+var
+  I: Integer;
+begin
+  Result := -1;
+  if FStateList.Count < 2 then
+    Exit;
+
+  I := FStateIndex;
+  Inc(I);
+  if I > FStateList.Count - 1 then
+  begin
+    if not aWrap then
+      Exit;
+    I := 0;
+  end;
+  ChangeState(I);
+end;
+
+constructor TAIActor.Create;
+begin
+  inherited;
+  FStateMachine := TAIStateMachine.Create;
+  FStateMachine.Owner := self;
+end;
+
+destructor TAIActor.Destroy;
+begin
+  FreeAndNil(FStateMachine);
+  inherited;
+end;
+
+procedure TAIActor.OnUpdate(const aDeltaTime: Double);
+begin
+  FStateMachine.Update(aDeltaTime);
+end;
+
+procedure TAIActor.OnRender;
+begin
+  FStateMachine.Render;
+end;
+
+constructor TActorList.Create;
+begin
+  inherited;
+  FHead := nil;
+  FTail := nil;
+  FCount := 0;
+end;
+
+destructor TActorList.Destroy;
+begin
+  Clear([]);
+  inherited;
+end;
+
+procedure TActorList.Add(const aActor: TActor);
+begin
+  if not Assigned(aActor) then Exit;
+
+  if aActor.Owner = Self then Exit;
+
+  if aActor.Owner <> nil then
+  begin
+    aActor.Owner.Remove(aActor, False);
+  end;
+
+  aActor.Prev := FTail;
+  aActor.Next := nil;
+  aActor.Owner := Self;
+
+  if FHead = nil then
+    begin
+      FHead := aActor;
+      FTail := aActor;
+    end
+  else
+    begin
+      FTail.Next := aActor;
+      FTail := aActor;
+    end;
+
+  Inc(FCount);
+end;
+
+procedure TActorList.Remove(const aActor: TActor; const aDispose: Boolean);
+var
+  Flag: Boolean;
+begin
+  if not Assigned(aActor) then Exit;
+
+  Flag := False;
+
+  if aActor.Next <> nil then
+  begin
+    aActor.Next.Prev := aActor.Prev;
+    Flag := True;
+  end;
+
+  if aActor.Prev <> nil then
+  begin
+    aActor.Prev.Next := aActor.Next;
+    Flag := True;
+  end;
+
+  if FTail = aActor then
+  begin
+    FTail := FTail.Prev;
+    Flag := True;
+  end;
+
+  if FHead = aActor then
+  begin
+    FHead := FHead.Next;
+    Flag := True;
+  end;
+
+  if Flag = True then
+  begin
+    aActor.Owner := nil;
+    Dec(FCount);
+    if aDispose then
+    begin
+      aActor.Free;
+    end;
+  end;
+end;
+
+procedure TActorList.Clear(const aAttrs: TActorAttributeSet);
+var
+  P: TActor;
+  N: TActor;
+  NoAttrs: Boolean;
+begin
+  P := FHead;
+
+  if P = nil then
+    Exit;
+
+  NoAttrs := Boolean(aAttrs = []);
+
+  repeat
+    N := P.Next;
+
+    if NoAttrs then
+    begin
+      Remove(P, True);
+    end
+    else
+    begin
+      if P.AttributesAreSet(aAttrs) then
+      begin
+        Remove(P, True);
+      end;
+    end;
+
+    P := N;
+
+  until P = nil;
+end;
+
+procedure TActorList.Clean;
+var
+  P: TActor;
+  N: TActor;
+begin
+  P := FHead;
+
+  if P = nil then Exit;
+
+  repeat
+    N := P.Next;
+
+    if P.Terminated then
+    begin
+      Remove(P, True);
+    end;
+
+    P := N;
+
+  until P = nil;
+end;
+
+procedure TActorList.ForEach(const aSender: TActor; const aAttrs: TActorAttributeSet; const aEventId: Integer; var aDone: Boolean);
+var
+  P: TActor;
+  N: TActor;
+  NoAttrs: Boolean;
+begin
+  P := FHead;
+
+  if P = nil then
+    Exit;
+
+  NoAttrs := Boolean(aAttrs = []);
+
+  repeat
+    N := P.Next;
+
+    if not P.Terminated then
+    begin
+      if NoAttrs then
+      begin
+        aDone := False;
+        P.OnVisit(aSender, aEventId, aDone);
+        if aDone then
+        begin
+          Exit;
+        end;
+      end
+      else
+      begin
+        if P.AttributesAreSet(aAttrs) then
+        begin
+          aDone := False;
+          P.OnVisit(aSender, aEventId, aDone);
+          if aDone then
+          begin
+            Exit;
+          end;
+        end;
+      end;
+    end;
+
+    P := N;
+
+  until P = nil;
+end;
+
+procedure TActorList.Update(const aAttrs: TActorAttributeSet; const aDeltaTime: Double);
+var
+  P: TActor;
+  N: TActor;
+  NoAttrs: Boolean;
+begin
+  P := FHead;
+
+  if P = nil then
+    Exit;
+
+  NoAttrs := Boolean(aAttrs = []);
+
+  repeat
+    N := P.Next;
+
+    if not P.Terminated then
+    begin
+      if NoAttrs then
+        begin
+          P.OnUpdate(aDeltaTime);
+        end
+      else
+        begin
+          if P.AttributesAreSet(aAttrs) then
+          begin
+            P.OnUpdate(aDeltaTime);
+          end;
+        end;
+    end;
+
+    P := N;
+
+  until P = nil;
+
+  Clean;
+end;
+
+procedure TActorList.Render(const aAttrs: TActorAttributeSet);
+var
+  P: TActor;
+  N: TActor;
+  NoAttrs: Boolean;
+begin
+  P := FHead;
+
+  if P = nil then Exit;
+
+  NoAttrs := Boolean(aAttrs = []);
+
+  repeat
+    N := P.Next;
+
+    if not P.Terminated then
+    begin
+      if NoAttrs then
+        begin
+          P.OnRender;
+        end
+      else
+        begin
+          if P.AttributesAreSet(aAttrs) then
+          begin
+            P.OnRender;
+          end;
+        end;
+    end;
+
+    P := N;
+
+  until P = nil;
+end;
+
+function TActorList.SendMessage(const aAttrs: TActorAttributeSet; const aMsg: PActorMessage; const aBroadcast: Boolean): TActor;
+var
+  P: TActor;
+  N: TActor;
+  NoAttrs: Boolean;
+begin
+  Result := nil;
+
+  P := FHead;
+
+  if P = nil then Exit;
+
+  NoAttrs := Boolean(aAttrs = []);
+
+  repeat
+    N := P.Next;
+
+    if not P.Terminated then
+    begin
+      if NoAttrs then
+        begin
+          Result := P.OnMessage(aMsg);
+          if not aBroadcast then
+          begin
+            if Result <> nil then
+            begin
+              Exit;
+            end;
+          end;
+        end
+      else
+        begin
+          if P.AttributesAreSet(aAttrs) then
+          begin
+            Result := P.OnMessage(aMsg);
+            if not aBroadcast then
+            begin
+              if Result <> nil then
+              begin
+                Exit;
+              end;
+            end;
+
+          end;
+        end;
+    end;
+
+    P := N;
+
+  until P = nil;
+end;
+
+procedure TActorList.CheckCollision(const aAttrs: TActorAttributeSet; const aActor: TActor);
+var
+  P: TActor;
+  N: TActor;
+  NoAttrs: Boolean;
+  HitPos: TPoint;
+begin
+  if aActor.Terminated then Exit;
+
+  if not aActor.CanCollide then Exit;
+
+  P := FHead;
+
+  if P = nil then Exit;
+
+  NoAttrs := Boolean(aAttrs = []);
+
+  repeat
+    N := P.Next;
+
+    if not P.Terminated then
+    begin
+        if NoAttrs then
+        begin
+
+          if P.CanCollide then
+          begin
+            HitPos.X := 0;
+            HitPos.Y := 0;
+            if aActor.Collide(P, HitPos) then
+            begin
+              P.OnCollide(aActor, HitPos);
+              aActor.OnCollide(P, HitPos);
+            end;
+          end;
+
+        end
+      else
+        begin
+          if P.AttributesAreSet(aAttrs) then
+          begin
+            if P.CanCollide then
+            begin
+              HitPos.X := 0;
+              HitPos.Y := 0;
+              if aActor.Collide(P, HitPos) then
+              begin
+                P.OnCollide(aActor, HitPos);
+                aActor.OnCollide(P, HitPos);
+              end;
+            end;
+
+          end;
+        end;
+    end;
+
+    P := N;
+
+  until P = nil;
+end;
+
+function TActorScene.GetList(aIndex: Integer): TActorList;
+begin
+  Result := FLists[aIndex];
+end;
+
+function TActorScene.GetCount: Integer;
+begin
+  Result := FCount;
+end;
+
+constructor TActorScene.Create;
+begin
+  inherited;
+  FLists := nil;
+  FCount := 0;
+end;
+
+destructor TActorScene.Destroy;
+begin
+  Dealloc;
+  inherited;
+end;
+
+procedure TActorScene.Alloc(const aNum: Integer);
+var
+  I: Integer;
+begin
+  Dealloc;
+  FCount := aNum;
+  SetLength(FLists, FCount);
+  for I := 0 to FCount - 1 do
+  begin
+    FLists[I] := TActorList.Create;
+  end;
+end;
+
+procedure TActorScene.Dealloc;
+var
+  I: Integer;
+begin
+  ClearAll;
+  for I := 0 to FCount - 1 do
+  begin
+    FLists[I].Free;
+  end;
+  FLists := nil;
+  FCount := 0;
+end;
+
+procedure TActorScene.Clean(const aIndex: Integer);
+begin
+  if (aIndex < 0) or (aIndex > FCount - 1) then
+    Exit;
+  FLists[aIndex].Clean;
+end;
+
+procedure TActorScene.Clear(const aIndex: Integer; const aAttrs: TActorAttributeSet);
+begin
+  if (aIndex < 0) or (aIndex > FCount - 1) then
+    Exit;
+
+  FLists[aIndex].Clear(aAttrs);
+end;
+
+procedure TActorScene.ClearAll;
+var
+  I: Integer;
+begin
+  for I := 0 to FCount - 1 do
+  begin
+    FLists[I].Clear([]);
+  end;
+end;
+
+procedure TActorScene.Update(const aAttrs: TActorAttributeSet; const aDeltaTime: Double);
+var
+  I: Integer;
+begin
+  for I := 0 to FCount - 1 do
+  begin
+    FLists[I].Update(aAttrs, aDeltaTime);
+  end;
+end;
+
+procedure TActorScene.Render(const aAttrs: TActorAttributeSet; const aBefore: TActorSceneEvent; const aAfter: TActorSceneEvent);
+var
+  I: Integer;
+begin
+  for I := 0 to FCount - 1 do
+  begin
+    if Assigned(aBefore) then  aBefore(I);
+    FLists[I].Render(aAttrs);
+    if Assigned(aAfter) then  aAfter(I);
+  end;
+end;
+
+function TActorScene.SendMessage(const aAttrs: TActorAttributeSet; const aMsg: PActorMessage; const aBroadcast: Boolean): TActor;
+var
+  I: Integer;
+begin
+  Result := nil;
+  for I := 0 to FCount - 1 do
+  begin
+    Result := FLists[I].SendMessage(aAttrs, aMsg, aBroadcast);
+    if not aBroadcast then
+    begin
+      if Result <> nil then
+      begin
+        Exit;
+      end;
+    end;
+  end;
+end;
+
+constructor TEntityActor.Create;
+begin
+  inherited;
+  FEntity := nil;
+end;
+
+destructor TEntityActor.Destroy;
+begin
+  FreeNilObject(FEntity);
+  inherited;
+end;
+
+procedure TEntityActor.Init(const aSprite: TSprite; const aGroup: Integer);
+begin
+  FEntity := TEntity.CreateEntity(aSprite, aGroup);
+end;
+
+function TEntityActor.Collide(const aActor: TActor; var aHitPos: TPoint): Boolean;
+begin
+  Result := False;
+  if FEntity = nil then Exit;
+  if aActor is TEntityActor then
+  begin
+    Result := FEntity.CollidePolyPointPoint(aHitPos);
+  end
+end;
+
+function TEntityActor.Overlap(const aX, aY, aRadius, aShrinkFactor: Single): Boolean;
+begin
+  Result := FAlse;
+  if FEntity = nil then Exit;
+  Result := FEntity.Overlap(aX, aY, aRadius, aShrinkFactor);
+end;
+
+function TEntityActor.Overlap(const aActor: TActor): Boolean;
+var
+  LEntityActor: TEntityActor;
+begin
+  Result := False;
+  if FEntity = nil then Exit;
+  if aActor is TEntityActor then
+  begin
+    LEntityActor := TEntityActor(aActor);
+    Result := FEntity.Overlap(LEntityActor.Entity)
+  end;
+end;
+
+procedure TEntityActor.OnRender;
+begin
+  if FEntity = nil then Exit;
+  FEntity.Render(0, 0);
+end;
+
+constructor TAIEntityActor.Create;
+begin
+  inherited;
+  FStateMachine := TAIStateMachine.Create;
+end;
+
+destructor TAIEntityActor.Destroy;
+begin
+  FreeAndNil(FStateMachine);
+  inherited;
+end;
+
+procedure TAIEntityActor.OnUpdate(const aDeltaTime: Double);
+begin
+  FStateMachine.Update(aDeltaTime);
+end;
+
+procedure TAIEntityActor.OnRender;
+begin
+  FStateMachine.Render;
+end;
+
 procedure RunGame(const aGame: TGameClass);
 var
   LGame: TGame;
@@ -28079,6 +29244,9 @@ begin
 
   Settings.TimerUpdateRate := 60;
   Settings.TimerFixedUpdateRate := 1;
+
+  Settings.SceneCount := 1;
+  Settings.SceneActorAttrs := [];
 end;
 
 function TGame.OnApplySettings: Boolean;
@@ -28101,6 +29269,9 @@ begin
 
   FSprite := TSprite.Create;
 
+  FScene := TActorScene.Create;
+  FScene.Alloc(Settings.SceneCount);
+
   Hud.SetPos(FSettings.HudPosX, FSettings.HudPosY);
   Hud.SetLineSpace(FSettings.HudLineSpace);
   Hud.SetTextItemPadWidth(FSettings.HudTextItemPadWidth);
@@ -28115,8 +29286,9 @@ end;
 
 procedure TGame.OnUnapplySettings;
 begin
-  FreeNilObject(FSprite);
+  FreeNilObject(FScene);
 
+  FreeNilObject(FSprite);
 
   FreeNilObject(FDefaultFont);
 
@@ -28156,6 +29328,8 @@ procedure TGame.OnUpdate(const aDeltaTime: Double);
 begin
   if FInput.KeyPressed(KEY_ESCAPE) then
     Terminate := True;
+
+  FScene.Update(Settings.SceneActorAttrs, aDeltaTime);
 end;
 
 procedure TGame.OnFixedUpdate(const aFixedUpdateSpeed: Single);
@@ -28174,6 +29348,7 @@ end;
 
 procedure TGame.OnRender;
 begin
+  FScene.Render(Settings.SceneActorAttrs, OnBeforeRenderScene, OnAfterRenderScene);
 end;
 
 procedure TGame.OnRenderHud;
@@ -28202,6 +29377,14 @@ begin
     vsPaused : PrintLn('Video "%s" paused', [aFilename]);
   end;
 
+end;
+
+procedure TGame.OnBeforeRenderScene(const aSceneNum: Integer);
+begin
+end;
+
+procedure TGame.OnAfterRenderScene(const aSceneNum: Integer);
+begin
 end;
 
 {$ENDREGION}

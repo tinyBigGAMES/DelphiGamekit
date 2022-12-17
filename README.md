@@ -36,7 +36,12 @@ if you wish to learn more about the Delphi language visit <a href="https://learn
 - **Screenshake** (you can set duration and magnitude, they are accumulative)
 - **Async** (push a task to run in the background, and optionally run a forground task after background task completes)
 - **CloudDb** (access remote MySQL database using HTTP and PHP)
-- **Misc** (collision, easing, screenshot, colors, INI based config files, logging and other useful utility routines)
+- **Sprite** (animated texture images organized into pages and groups)
+- **Entity** (sprite objects, that has position, color, can be scaled and rotated)
+- **Actor** (high level game object that can persist in the game world)
+- **ActorScene** (multiple layers that actors exist on in the game world)
+- **ConfigFile** (INI based configuration file management)
+- **Misc** (collision, easing, screenshot, colors, logging and other useful utility routines)
 - And more. See `DelphiGamekit.pas` in `installdir\sources` and the docs in `installdir\docs` for more information about features.
 
 ## Minimum System Requirements
