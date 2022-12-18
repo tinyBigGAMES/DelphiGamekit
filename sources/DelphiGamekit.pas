@@ -12548,6 +12548,57 @@ type
     function  Intersect(aRect: TRect): Boolean; inline;
   end;
 
+  PTransform = ^TTransform;
+  TTransform = record
+    X,Y,Width,Height,Angle,Zoom: Single;
+    Visible: Boolean;
+    Origin: TPoint;
+    class operator Initialize(out aDest: TTransform);
+    class operator Finalize(var aDest: TTransform);
+    class operator Implicit(aValue: TTransform): SDL_Rect;
+    class operator Implicit(aValue: TTransform): SDL_FRect;
+    class operator Implicit(aValue: TTransform): TRect;
+    class operator Implicit(aValue: TTransform): TVector;
+    class operator Implicit(aValue: TTransform): TPoint;
+    class operator Implicit(aValue: SDL_Rect): TTransform;
+    class operator Implicit(aValue: SDL_FRect): TTransform;
+    constructor Create(const aX, aY: Single); overload;
+    constructor Create(const aX, aY, aWidth, aHeight: Single); overload;
+    procedure Assign(const aX, aY: Single); overload;
+    procedure Assign(const aX, aY, aWidth, aHeight: Single); overload;
+    function  Intersect(aRect: TTransform): Boolean;
+  end;
+
+  TCamera = class(TBaseObject)
+  private
+    FPos: TVector;
+    FBounds: TRect;
+    FZoom: Single;
+    FAngle: Single;
+    FActive: Boolean;
+    function InBounds(const aX, aY, aWidth, aHeight, aOriginX, aOriginY: Single): Boolean;
+    procedure SetAngle(const aValue: Single);
+    procedure SetZoom(const aValue: Single);
+    procedure SetActive(const aValue: Boolean);
+  public const
+    ZOOM_MIN = 0.01;
+    ZOOM_MAX = 10.0;
+  public
+    property PosX: Single read FPos.X write FPos.X;
+    property PosY: Single read FPos.Y write FPos.Y;
+    property Bounds: TRect read FBounds;
+    property Angle: Single read FAngle write SetAngle;
+    property Zoom: Single read FZoom write SetZoom;
+    property Active: Boolean read FActive write SetActive;
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure Init(const aPosX, aPosY, aBoundsX, aBoundsY, aBoundsWidth, aBoundsHeight: Single);
+    procedure SetBounds(const aX, aY, aWidth, aHeight: Single);
+    procedure WorldToScreen(const aWorld: TTransform; var aScreen: TTransform); overload;
+    function WorldToScreen(var aX, aY, aWidth, aHeight, aAngle, aScale: Single; const aOriginX, aOriginY: Single): Boolean; overload;
+    function  IsVisible(const aTransform: TTransform): Boolean;
+  end;
+
 const
   TIMER_UPDATE_SPEED = 60.0;
   TIMER_FIXEDUPDATE_SPEED = 60.0;
@@ -21580,6 +21631,282 @@ begin
 
   Result := (X < LR2R) and (LR1R > aRect.X) and (Y < LR2B) and (LR1B > aRect.Y);
 end;
+
+class operator TTransform.Initialize(out aDest: TTransform);
+begin
+  aDest.X := 0;
+  aDest.Y := 0;
+  aDest.Width := 0;
+  aDest.Height := 0;
+  aDest.Angle := 0;
+  aDest.Origin.X := 1;
+  aDest.Origin.Y := 1;
+  aDest.Visible := False;
+end;
+
+class operator TTransform.Finalize(var aDest: TTransform);
+begin
+end;
+
+class operator TTransform.Implicit(aValue: TTransform): SDL_Rect;
+begin
+  Result.x := Round(aValue.X);
+  Result.y := Round(aValue.Y);
+  Result.w := Round(aValue.Width);
+  Result.h := Round(aValue.Height);
+end;
+
+class operator TTransform.Implicit(aValue: TTransform): SDL_FRect;
+begin
+  Result.x := aValue.X;
+  Result.y := aValue.Y;
+  Result.w := aValue.Width;
+  Result.h := aValue.Height;
+end;
+
+class operator TTransform.Implicit(aValue: TTransform): TRect;
+begin
+  Result.X := aValue.X;
+  Result.Y := aValue.Y;
+  Result.Width := aValue.Width;
+  Result.Height := aValue.Height;
+end;
+
+class operator TTransform.Implicit(aValue: TTransform): TVector;
+begin
+  Result.X := aValue.X;
+  Result.Y := aValue.Y;
+end;
+
+class operator TTransform.Implicit(aValue: TTransform): TPoint;
+begin
+  Result.X := aValue.X;
+  Result.Y := aValue.Y;
+end;
+
+class operator TTransform.Implicit(aValue: SDL_Rect): TTransform;
+begin
+  Result.X := aValue.x;
+  Result.Y := aValue.y;
+  Result.Width := aValue.w;
+  Result.Height := aValue.h;
+end;
+
+class operator TTransform.Implicit(aValue: SDL_FRect): TTransform;
+begin
+  Result.X := aValue.x;
+  Result.Y := aValue.y;
+  Result.Width := aValue.w;
+  Result.Height := aValue.h;
+end;
+
+constructor TTransform.Create(const aX, aY: Single);
+begin
+  X := aX;
+  Y := aY;
+  Width := 0;
+  Height := 0;
+  Angle := 0;
+end;
+
+constructor TTransform.Create(const aX, aY, aWidth, aHeight: Single);
+begin
+  X := aX;
+  Y := aY;
+  Width := aWidth;
+  Height := aHeight;
+  Angle := 0;
+end;
+
+procedure TTransform.Assign(const aX, aY: Single);
+begin
+  X := aX;
+  Y := aY;
+end;
+
+procedure TTransform.Assign(const aX, aY, aWidth, aHeight: Single);
+begin
+  X := aX;
+  Y := aY;
+  Width := aWidth;
+  Height := aHeight;
+end;
+
+function  TTransform.Intersect(aRect: TTransform): Boolean;
+var
+  LR1R, LR1B: Single;
+  LR2R, LR2B: Single;
+begin
+  LR1R := X - (Width - 1);
+  LR1B := Y - (Height - 1);
+  LR2R := aRect.X - (aRect.Width - 1);
+  LR2B := aRect.Y - (aRect.Height - 1);
+  Result := (X < LR2R) and (LR1R > aRect.X) and (Y < LR2B) and (LR1B > aRect.Y);
+end;
+
+function  TCamera.InBounds(const aX, aY, aWidth, aHeight, aOriginX, aOriginY: Single): Boolean;
+var
+  LX, LY: Single;
+  LBounds: TRect;
+begin
+  Result := False;
+
+  LX := aX;
+  LY := aY;
+
+  LBounds := FBounds;
+
+  AngleRotatePos(-FAngle, LX, LY);
+  AngleRotatePos(-FAngle, LBounds.X, LBounds.Y);
+
+  if LX < LBounds.X-(aWidth * aOriginX) then Exit;
+  if LX > (LBounds.X+LBounds.Width) + (aWidth * aOriginX) then Exit;
+
+  if LY < LBounds.Y-(aHeight * aOriginY) then Exit;
+  if LY > (LBounds.Y+LBounds.Height) + (aHeight * aOriginY) then Exit;
+
+  Result := True;
+end;
+
+procedure TCamera.SetAngle(const aValue: Single);
+var
+  LAngle: Single;
+begin
+  LAngle := aValue;
+  FAngle := ClipVaLuef(LAngle, 0, 360, True);
+end;
+
+procedure TCamera.SetZoom(const aValue: Single);
+var
+  LZoom: Single;
+begin
+  LZoom := aValue;
+  if LZoom < ZOOM_MIN then
+    LZoom := ZOOM_MIN
+  else
+  if LZoom > ZOOM_MAX then
+    LZoom := ZOOM_MAX;
+  FZoom := LZoom;
+end;
+
+procedure TCamera.SetActive(const aValue: Boolean);
+var
+  LRect: SDL_Rect;
+begin
+  FActive := aValue;
+
+  if Game.Window.GetWindowHandle = nil then Exit;
+  if Game.Window.GetRendererHandle = nil then Exit;
+
+  if FActive then
+    begin
+      LRect := FBounds;
+      SDL_RenderSetClipRect(Game.Window.GetRendererHandle, @LRect);
+    end
+  else
+    begin
+      LRect.x := 0;
+      LRect.y := 0;
+      SDL_GetWindowSize(Game.Window.GetWindowHandle, @LRect.w, @LRect.h);
+      SDL_RenderSetClipRect(Game.Window.GetRendererHandle, @LRect);
+    end;
+end;
+
+constructor TCamera.Create;
+begin
+  inherited;
+  FZoom := 1;
+end;
+
+destructor TCamera.Destroy;
+begin
+  inherited;
+end;
+
+procedure TCamera.Init(const aPosX, aPosY, aBoundsX, aBoundsY, aBoundsWidth, aBoundsHeight: Single);
+begin
+  FPos.Assign(aPosX, aPosY);
+  SetBounds(aBoundsX, aBoundsY, aBoundsWidth, aBoundsHeight);
+end;
+
+procedure TCamera.SetBounds(const aX, aY, aWidth, aHeight: Single);
+var
+  LVP: TRect;
+begin
+  FBounds.Assign(aX, aY, aWidth, aHeight);
+  LVP := Game.Window.GetViewport;
+  if FBounds.X < LVP.X then FBounds.X := LVP.X;
+  if FBounds.Y < LVP.Y then FBounds.Y := LVP.Y;
+  if FBounds.Width > LVP.Width then FBounds.Width := LVP.Width;
+  if FBounds.Height > LVP.Height then FBounds.Height := LVP.Height;
+end;
+
+procedure TCamera.WorldToScreen(const aWorld: TTransform; var aScreen: TTransform);
+var
+  LCenter: TVector;
+  LScreen: TTransform;
+begin
+  LScreen := aWorld;
+  LScreen.Angle := FAngle;
+  LScreen.Zoom := FZoom;
+
+  LScreen.X := LScreen.X - FPos.X;
+  LScreen.Y := LScreen.Y - FPos.Y;
+
+  AngleRotatePos(LScreen.Angle, LScreen.X, LScreen.Y);
+
+  LCenter.X := (FBounds.Width  / 2) + FBounds.X;
+  LCenter.Y := (FBounds.Height / 2) + FBounds.Y;
+
+  LScreen.X := (LCenter.X - FBounds.X) - LScreen.X * LScreen.Zoom;
+  LScreen.Y := (LCenter.Y - FBounds.Y) + LScreen.Y * LScreen.Zoom;
+
+  LScreen.X := LScreen.X + FBounds.X;
+  LScreen.Y := LScreen.Y + FBounds.Y;
+
+  LScreen.Width := LScreen.Width * LScreen.Zoom;
+  LScreen.Height := LScreen.Height * LScreen.Zoom;
+
+  LScreen.Visible := IsVisible(LScreen);
+
+  LScreen.Angle := -Angle;
+
+  aScreen := LScreen;
+end;
+
+function TCamera.WorldToScreen(var aX, aY, aWidth, aHeight, aAngle, aScale: Single; const aOriginX, aOriginY: Single): Boolean;
+var
+  LWorld: TTransform;
+  LScreen: TTransform;
+begin
+  LWorld.X := aX;
+  LWorld.Y := aY;
+  LWorld.Width := aWidth;
+  LWorld.Height := aHeight;
+  LWorld.Angle := aAngle;
+  LWorld.Zoom := FZoom;
+  LWorld.Visible := False;
+  LWorld.Origin.X := aOriginX;
+  LWorld.Origin.Y := aOriginY;
+
+  WorldToScreen(LWorld, LScreen);
+
+  aX := LScreen.X;
+  aY := LScreen.Y;
+  aWidth := LScreen.Width;
+  aHeight := LScreen.Height;
+  aAngle := LScreen.Angle;
+  aScale := LScreen.Zoom;
+  Result := LScreen.Visible;
+end;
+
+function  TCamera.IsVisible(const aTransform: TTransform): Boolean;
+begin
+  Result := False;
+  if not FActive then Exit;
+  Result := InBounds(aTransform.X, aTransform.Y, aTransform.Width, aTransform.Width, aTransform.Origin.X, aTransform.Origin.Y);
+end;
+
 
 class operator TTimer.Initialize(out aDest: TTimer);
 begin
