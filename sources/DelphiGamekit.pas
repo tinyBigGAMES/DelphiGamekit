@@ -12947,6 +12947,8 @@ type
     function Write(const aBuffer: TBytes; aOffset, aCount: Longint): Longint; override;
     procedure SaveToFile(aFilename: string);
     property Name: string read FName;
+    function  Eof: Boolean;
+    function  ReadString: WideString;
     class function LoadFromFile(const aFilename: string): TBuffer;
   end;
 
@@ -13486,6 +13488,37 @@ type
     class function  ControllerPressed(const aButton: Cardinal): Boolean; static;
     class function  ControllerReleased(const aButton: Cardinal): Boolean; static;
     class function  ControllerPosition(const aAxis: Cardinal): Single; static;
+  end;
+
+  TInputDevice = (idKeyboard, idMouse, idJoystick);
+
+  TInputMap = class(TBaseObject)
+  protected type
+    TInput = record
+      Device: TInputDevice;
+      Data: Integer;
+    end;
+
+    TAction = record
+      Action: string;
+      List: TList<TInputMap.TInput>;
+    end;
+  protected
+    FList: TDictionary<string, TAction>;
+    function NewAction(const aAction: string; aDevice: TInputDevice; aData: Integer): TAction;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure SetupDefaults; virtual;
+    procedure Clear;
+    function Add(const aAction: string; aDevice: TInputDevice; aData: Integer): Boolean;
+    function Remove(const aAction: string): Boolean; overload;
+    function Remove(const aAction: string; aDevice: TInputDevice; aData: Integer): Boolean; overload;
+    function Pressed(const aAction: string): Boolean;
+    function Released(const aAction: string): Boolean;
+    function Down(const aAction: string): Boolean;
+    function Save(const aFilename: string): Boolean;
+    function Load(const aArchive: TArchive; const aFilename: string): Boolean;
   end;
 
 {$ENDREGION}
@@ -23373,6 +23406,21 @@ begin
   Result := LBuffer;
 end;
 
+function  TBuffer.Eof: Boolean;
+begin
+  Result := Boolean(Position >= Size);
+end;
+
+function  TBuffer.ReadString: WideString;
+var
+  LLength: LongInt;
+begin
+  Read(LLength, SizeOf(LLength));
+  SetLength(Result, LLength);
+  if LLength > 0 then Read(Result[1], LLength * SizeOf(Char));
+end;
+
+
 constructor TConfigFile.Create;
 begin
   inherited;
@@ -25290,6 +25338,317 @@ begin
   Result := 0;
   if not FIsOpen then Exit;
   Result := FController.GetAxis(aAxis);
+end;
+
+function TInputMap.NewAction(const aAction: string; aDevice: TInputDevice; aData: Integer): TAction;
+var
+  LInput: TInput;
+begin
+  Result.Action := aAction;
+  Result.List := TList<TInputMap.TInput>.Create;
+  LInput.Device := aDevice;
+  LInput.Data := aData;
+  Result.List.Add(LInput);
+end;
+
+procedure TInputMap.SetupDefaults;
+begin
+  Add('accept', idKeyboard, KEY_RETURN);
+  Add('accept', idKeyboard, KEY_RETURN2);
+  Add('accept', idKeyboard, KEY_SPACE);
+  Add('accept', idJoystick, CONTROLLER_BUTTON_A);
+
+  Add('select', idKeyboard, KEY_SPACE);
+  Add('select', idJoystick, CONTROLLER_BUTTON_Y);
+
+  Add('cancel', idKeyboard, KEY_ESCAPE);
+  Add('cancel', idJoystick, CONTROLLER_BUTTON_B);
+
+  Add('left', idKeyboard, KEY_LEFT);
+  Add('left', idJoystick, CONTROLLER_BUTTON_DPAD_LEFT);
+  Add('left', idKeyboard, KEY_A);
+
+  Add('right', idKeyboard, KEY_RIGHT);
+  Add('right', idJoystick, CONTROLLER_BUTTON_DPAD_RIGHT);
+  Add('right', idKeyboard, KEY_S);
+
+  Add('up', idKeyboard, KEY_UP);
+  Add('up', idJoystick, CONTROLLER_BUTTON_DPAD_UP);
+  Add('up', idKeyboard, KEY_W);
+
+  Add('down', idKeyboard, KEY_DOWN);
+  Add('down', idJoystick, CONTROLLER_BUTTON_DPAD_DOWN);
+  Add('down', idKeyboard, KEY_S);
+
+  Add('pgup', idKeyboard, KEY_PAGEUP);
+
+ Add('pgdn', idKeyboard, KEY_PAGEDOWN);
+
+  Add('home', idKeyboard, KEY_HOME);
+
+  Add('end', idKeyboard, KEY_END);
+end;
+
+constructor TInputMap.Create;
+begin
+  inherited;
+
+  FList := TDictionary<string, TAction>.Create;
+  SetupDefaults;
+end;
+
+destructor TInputMap.Destroy;
+begin
+  Clear;
+  FreeAndNil(FList);
+
+  inherited;
+end;
+
+procedure TInputMap.Clear;
+var
+  LItem: TPair<string, TAction>;
+begin
+  for LItem in FList do
+  begin
+    FreeAndNil(LItem.Value.List);
+  end;
+  FList.Clear;
+end;
+
+function TInputMap.Add(const aAction: string; aDevice: TInputDevice; aData: Integer): Boolean;
+var
+  LAction: TAction;
+  LInput: TInput;
+begin
+  Result := False;
+  if FList.TryGetValue(aAction, LAction) then
+    begin
+      LInput.Device := aDevice;
+      LInput.Data := aData;
+      if LAction.List.Contains(LInput) then
+        begin
+          Exit;
+        end
+      else
+        begin
+          LAction.List.Add(LInput);
+          Result := False;
+        end;
+    end
+  else
+    begin
+      LAction := NewAction(aAction, aDevice, aData);
+      FList.Add(aAction, LAction);
+    end;
+end;
+
+function TInputMap.Remove(const aAction: string): Boolean;
+var
+  LAction: TAction;
+begin
+  Result := False;
+  if FList.TryGetValue(aAction, LAction) then
+  begin
+    FList.Remove(aAction);
+    FreeAndNil(LAction.List);
+    FList.TrimExcess;
+    Result := True;
+  end;
+end;
+
+function TInputMap.Remove(const aAction: string; aDevice: TInputDevice; aData: Integer): Boolean;
+var
+  LAction: TAction;
+  LInput: TInput;
+begin
+  Result := False;
+
+  if not FList.TryGetValue(aAction, LAction) then Exit;
+  LInput.Device := aDevice;
+  LInput.Data := aData;
+  if LAction.List.Contains(LInput) then
+  begin
+    LAction.List.Remove(LInput);
+    LAction.List.Pack;
+    Result := True;
+  end;
+end;
+
+function TInputMap.Pressed(const aAction: string): Boolean;
+var
+  LAction: TAction;
+begin
+  Result := False;
+  if FList.TryGetValue(aAction, LAction) then
+  begin
+    for var I := 0 to LAction.List.Count-1 do
+    begin
+      case LAction.List.Items[I].Device of
+        idKeyboard:
+          begin
+            Result := Game.Input.KeyPressed(LAction.List.Items[I].Data);
+            if Result then Break;
+          end;
+        idMouse:
+          begin
+            Result := Game.Input.MousePressed(LAction.List.Items[I].Data);
+            if Result then Break;
+          end;
+        idJoystick:
+          begin
+            Result := Game.Input.ControllerPressed(LAction.List.Items[I].Data);
+            if Result then Break;
+          end;
+      end;
+    end;
+  end;
+end;
+
+function TInputMap.Released(const aAction: string): Boolean;
+var
+  LAction: TAction;
+  LI: Integer;
+begin
+  Result := False;
+  if FList.TryGetValue(aAction, LAction) then
+  begin
+    for LI := 0 to LAction.List.Count-1 do
+    begin
+      case LAction.List.Items[LI].Device of
+        idKeyboard:
+          begin
+            Result := Game.Input.KeyReleased(LAction.List.Items[LI].Data);
+            if Result then Break;
+          end;
+        idMouse:
+          begin
+            Result := Game.Input.MouseReleased(LAction.List.Items[LI].Data);
+            if Result then Break;
+          end;
+        idJoystick:
+          begin
+            Result := Game.Input.ControllerReleased(LAction.List.Items[LI].Data);
+            if Result then Break;
+          end;
+      end;
+    end;
+  end;
+end;
+
+function TInputMap.Down(const aAction: string): Boolean;
+var
+  LAction: TAction;
+  LI: Integer;
+begin
+  Result := False;
+  if FList.TryGetValue(aAction, LAction) then
+  begin
+    for LI := 0 to LAction.List.Count-1 do
+    begin
+      case LAction.List.Items[LI].Device of
+       idKeyboard:
+          begin
+            Result := Game.Input.KeyDown(LAction.List.Items[LI].Data);
+            if Result then Break;
+          end;
+        idMouse:
+          begin
+            Result := Game.Input.MouseDown(LAction.List.Items[LI].Data);
+            if Result then Break;
+          end;
+        idJoystick:
+          begin
+            Result := Game.Input.ControllerDown(LAction.List.Items[LI].Data);
+            if Result then Break;
+          end;
+      end;
+    end;
+  end;
+end;
+
+function TInputMap.Save(const aFilename: string): Boolean;
+var
+  LStream: TFileStream;
+  LAction: TAction;
+  LIndex: Integer;
+begin
+  Result := False;
+  if aFilename = '' then Exit;
+
+  LStream := TFile.Create(aFilename);
+  try
+    LStream.WriteData(FList.Count);
+
+    for LAction in FList.Values do
+    begin
+      LStream.WriteData(LAction.List.Count);
+
+      WriteStringToStream(LStream, LAction.Action);
+
+      for LIndex := 0 to LAction.List.Count-1 do
+      begin
+        LStream.WriteData(LAction.List.Items[LIndex].Device);
+        LStream.WriteData(LAction.List.Items[LIndex].Data);
+      end;
+    end;
+
+    Result := TFile.Exists(aFilename);
+  finally
+    FreeAndNil(LStream);
+  end;
+end;
+
+function TInputMap.Load(const aArchive: TArchive; const aFilename: string): Boolean;
+var
+  LBuffer: TBuffer;
+  LCount: Integer;
+  LIndex: Integer;
+  LAction: string;
+  LDevice: TInputDevice;
+  LData: Integer;
+  LPath: string;
+  LSize: Int64;
+begin
+  Result := False;
+  if aFilename = '' then Exit;
+
+  if Assigned(aArchive) then
+    begin
+      if not aArchive.IsOpen then Exit;
+      LBuffer := aArchive.OpenFileBuffer(LPath);
+      if not Assigned(LBuffer) then Exit;
+    end
+  else
+    begin
+      LBuffer := TBuffer.LoadFromFile(aFilename);
+      if not Assigned(LBuffer) then Exit;
+    end;
+
+  Self.Clear;
+
+  LBuffer.Position := 0;
+
+  LBuffer.Read(LCount, SizeOf(LCount));
+
+  while not LBuffer.Eof do
+  begin
+    LBuffer.Read(LCount, SizeOf(LCount));
+
+    LAction := LBuffer.ReadString;
+
+    for LIndex := 0 to LCount-1 do
+    begin
+      LBuffer.Read(LDevice, SizeOf(LDevice));
+      LBuffer.Read(LData, SizeOf(LData));
+
+      self.Add(LAction, LDevice, LData);
+    end;
+  end;
+
+  FreeAndNil(LBuffer);
+
+  Result := True;
 end;
 
 {$ENDREGION}
