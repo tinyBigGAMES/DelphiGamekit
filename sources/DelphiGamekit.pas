@@ -133,7 +133,113 @@ uses
   WinApi.Windows,
   WinApi.Messages,
   WinApi.ShellAPI,
-  Winapi.ActiveX;
+  Winapi.ActiveX,
+  System.Rtti,
+  System.TypInfo;
+{$ENDREGION}
+
+{$REGION ' DelphiGamekit.Deps.LuaJIT '}
+//DOM-IGNORE-BEGIN
+const
+
+  LUA_TNONE = -1;
+  LUA_TNIL = 0;
+  LUA_TBOOLEAN = 1;
+  LUA_TLIGHTUSERDATA = 2;
+  LUA_TNUMBER = 3;
+  LUA_TSTRING = 4;
+  LUA_TTABLE = 5;
+  LUA_TFUNCTION = 6;
+  LUA_TUSERDATA = 7;
+  LUA_TTHREAD = 8;
+
+  LUA_MINSTACK = 20;
+
+  LUA_MULTRET = -1;
+
+  LUA_REGISTRYINDEX = -10000;
+  LUA_ENVIRONINDEX = -10001;
+  LUA_GLOBALSINDEX = -10002;
+
+  LUA_OK = 0;
+  LUA_YIELD_ = 1;
+  LUA_ERRRUN = 2;
+  LUA_ERRSYNTAX = 3;
+  LUA_ERRMEM = 4;
+  LUA_ERRERR = 5;
+
+  LUA_GCSTOP = 0;
+  LUA_GCRESTART = 1;
+  LUA_GCCOLLECT = 2;
+  LUA_GCCOUNT = 3;
+  LUA_GCCOUNTB = 4;
+  LUA_GCSTEP = 5;
+  LUA_GCSETPAUSE = 6;
+  LUA_GCSETSTEPMUL = 7;
+
+type
+  TLuaCFunction = function(aState: Pointer): Integer; cdecl;
+
+  TLuaWriter = function(aState: Pointer; const aBuffer: Pointer; aSize: NativeUInt; aData: Pointer): Integer; cdecl;
+
+  TLuaReader = function(aState: Pointer; aData: Pointer; aSize: PNativeUInt): PAnsiChar; cdecl;
+
+var
+  lua_gc: function(aState: Pointer; aWhat: Integer; aData: Integer): Integer; cdecl;
+  lua_gettop: function(aState: Pointer): Integer; cdecl;
+  lua_settop: procedure(aState: Pointer; aIndex: Integer); cdecl;
+  lua_pushvalue: procedure(aState: Pointer; aIndex: Integer); cdecl;
+  lua_call: procedure(aState: Pointer; aNumArgs, aNumResults: Integer); cdecl;
+  lua_pcall: function(aState: Pointer; aNumArgs, aNumResults, errfunc: Integer): Integer; cdecl;
+  lua_tonumber: function(aState: Pointer; aIndex: Integer): Double; cdecl;
+  lua_tointeger: function(aState: Pointer; aIndex: Integer): Integer; cdecl;
+  lua_toboolean: function(aState: Pointer; aIndex: Integer): LongBool; cdecl;
+  lua_tolstring: function(aState: Pointer; aIndex: Integer; len: PNativeUInt): PAnsiChar; cdecl;
+  lua_touserdata: function(aState: Pointer; aIndex: Integer): Pointer; cdecl;
+  lua_topointer: function(aState: Pointer; aIndex: Integer): Pointer; cdecl;
+  lua_close: procedure(aState: Pointer); cdecl;
+  lua_type: function(aState: Pointer; aIndex: Integer): Integer; cdecl;
+  lua_iscfunction: function(aState: Pointer; aIndex: Integer): LongBool; cdecl;
+  lua_pushnil: procedure(aState: Pointer); cdecl;
+  lua_pushnumber: procedure(aState: Pointer; n: Double); cdecl;
+  lua_pushinteger: procedure(aState: Pointer; n: Integer); cdecl;
+  lua_pushlstring: procedure(aState: Pointer; const aStr: PAnsiChar; aLen: NativeUInt); cdecl;
+  lua_pushstring: procedure(aState: Pointer; const aStr: PAnsiChar); cdecl;
+  lua_pushcclosure: procedure(aState: Pointer; aFuncn: TLuaCFunction; aCount: Integer); cdecl;
+  lua_pushboolean: procedure(L: Pointer; b: LongBool); cdecl;
+  lua_pushlightuserdata: procedure(aState: Pointer; aData: Pointer); cdecl;
+  lua_createtable: procedure(aState: Pointer; narr, nrec: Integer); cdecl;
+  lua_setfield: procedure(aState: Pointer; aIndex: Integer; const aName: PAnsiChar); cdecl;
+  lua_getfield: procedure(aState: Pointer; aIndex: Integer; aName: PAnsiChar); cdecl;
+  lua_dump: function(aState: Pointer; aWriter: TLuaWriter; aData: Pointer): Integer; cdecl;
+  lua_rawset: procedure(aState: Pointer; aIndex: Integer); cdecl;
+  lua_load: function(aState: Pointer; aReader: TLuaReader; aData: Pointer; aChunkName: PAnsiChar): Integer; cdecl;
+  lua_rawgeti: procedure(aState: Pointer; index: integer; key: integer); cdecl;
+  lua_rawseti: procedure(aState: Pointer; index: integer; key: integer); cdecl;
+  luaL_newstate: function: Pointer; cdecl;
+  luaL_openlibs: procedure(aState: Pointer); cdecl;
+  luaL_loadfile: function(aState: Pointer; const filename: PAnsiChar): Integer; cdecl;
+  luaL_loadstring: function(aState: Pointer; const aStr: PAnsiChar): Integer; cdecl;
+  luaL_loadbuffer: function(aState: Pointer; aBuffer: Pointer; aSize: NativeUInt; aName: PAnsiChar): Integer; cdecl;
+
+function  lua_isfunction(aState: Pointer; n: Integer): Boolean; inline;
+function  lua_isvariable(aState: Pointer; n: Integer): Boolean; inline;
+procedure lua_newtable(aState: Pointer); inline;
+procedure lua_pop(aState: Pointer; n: Integer); inline;
+procedure lua_getglobal(aState: Pointer; aName: PAnsiChar); inline;
+procedure lua_setglobal(aState: Pointer; aName: PAnsiChar); inline;
+procedure lua_pushcfunction(aState: Pointer; aFunc: TLuaCFunction); inline;
+procedure lua_register(aState: Pointer; aName: PAnsiChar; aFunc: TLuaCFunction); inline;
+function  lua_isnil(aState: Pointer; n: Integer): Boolean; inline;
+function  lua_tostring(aState: Pointer; idx: Integer): string; inline;
+function  luaL_dofile(aState: Pointer; aFilename: PAnsiChar): Integer; inline;
+function  luaL_dostring(aState: Pointer; aStr: PAnsiChar): Integer; inline;
+function  luaL_dobuffer(aState: Pointer; aBuffer: Pointer; aSize: NativeUInt; aName: PAnsiChar): Integer; inline;
+function  lua_upvalueindex(i: Integer): Integer; inline;
+
+procedure GetLuaExports(const aDLLHandle: Pointer);
+//DOM-IGNORE-END
+
 {$ENDREGION}
 
 {$REGION ' DelphiGamekit.Deps.SDL2 '}
@@ -12455,12 +12561,14 @@ const
   VERSION_MINOR = '1';
   VERSION_PATCH = '0';
 
-  LOGEXT = 'log';
-  PNGEXT = 'png';
-  OGGEXT = 'ogg';
-  INIEXT = 'ini';
-  ARCEXT = 'arc';
-  MPGEXT = 'mpg';
+  LOGEXT  = 'log';
+  PNGEXT  = 'png';
+  OGGEXT  = 'ogg';
+  INIEXT  = 'ini';
+  ARCEXT  = 'arc';
+  MPGEXT  = 'mpg';
+  LUAEXT  = 'lua';
+  LUACEXT = 'luac';
 
   CR = #10;
   LF = #13;
@@ -14024,6 +14132,179 @@ type
 
 {$ENDREGION}
 
+{$REGION ' DelphiGamekit.Scripting '}
+type
+  TLuaType = (ltNone = -1, ltNil = 0, ltBoolean = 1, ltLightUserData = 2,
+    ltNumber = 3, ltString = 4, ltTable = 5, ltFunction = 6, ltUserData = 7,
+    ltThread = 8);
+
+  TLuaTable = (LuaTable);
+
+  TLuaValueType = (vtInteger, vtDouble, vtString, vtTable, vtPointer,
+    vtBoolean);
+
+  TLuaValue = record
+    AsType: TLuaValueType;
+    class operator Implicit(const aValue: Integer): TLuaValue;
+    class operator Implicit(aValue: Double): TLuaValue;
+    class operator Implicit(aValue: System.PChar): TLuaValue;
+    class operator Implicit(aValue: TLuaTable): TLuaValue;
+    class operator Implicit(aValue: Pointer): TLuaValue;
+    class operator Implicit(aValue: Boolean): TLuaValue;
+
+    class operator Implicit(aValue: TLuaValue): Integer;
+    class operator Implicit(aValue: TLuaValue): Double;
+    class operator Implicit(aValue: TLuaValue): System.PChar;
+    class operator Implicit(aValue: TLuaValue): Pointer;
+    class operator Implicit(aValue: TLuaValue): Boolean;
+
+    case Integer of
+      0: (AsInteger: Integer);
+      1: (AsNumber: Double);
+      2: (AsString: System.PChar);
+      3: (AsTable: TLuaTable);
+      4: (AsPointer: Pointer);
+      5: (AsBoolean: Boolean);
+  end;
+
+  ILuaContext = interface
+    ['{6AEC306C-45BC-4C65-A0E1-044739DED1EB}']
+    function  ArgCount: Integer;
+    function  PushCount: Integer;
+    procedure ClearStack;
+    procedure PopStack(aCount: Integer);
+    function  GetStackType(aIndex: Integer): TLuaType;
+    function  GetValue(aType: TLuaValueType; aIndex: Integer): TLuaValue;
+    procedure PushValue(aValue: TLuaValue);
+    procedure SetTableFieldValue(const aName: string; aValue: TLuaValue; aIndex: Integer); overload;
+    function  GetTableFieldValue(const aName: string; aType: TLuaValueType; aIndex: Integer): TLuaValue; overload;
+    procedure SetTableIndexValue(const aName: string; aValue: TLuaValue; aIndex: Integer; aKey: Integer);
+    function  GetTableIndexValue(const aName: string; aType: TLuaValueType; aIndex: Integer; aKey: Integer): TLuaValue;
+  end;
+
+  TLuaFunction = procedure(aLua: ILuaContext) of object;
+
+  ILua = interface
+    ['{671FAB20-00F2-4C81-96A6-6F675A37D00B}']
+    procedure Reset;
+    procedure LoadStream(aStream: TStream; aSize: NativeUInt = 0; aAutoRun: Boolean = True);
+    function  LoadFile(const aFilename: string; aAutoRun: Boolean = True): Boolean;
+    procedure LoadString(const aData: string; aAutoRun: Boolean = True);
+    procedure LoadBuffer(aData: Pointer; aSize: NativeUInt; aAutoRun: Boolean = True);
+    procedure Run;
+    function  RoutineExist(const aName: string): Boolean;
+    function  Call(const aName: string; const aParams: array of TLuaValue): TLuaValue; overload;
+    function  PrepCall(const aName: string): Boolean;
+    function  Call(aParamCount: Integer): TLuaValue; overload;
+    function  VariableExist(const aName: string): Boolean;
+    procedure SetVariable(const aName: string; aValue: TLuaValue);
+    function  GetVariable(const aName: string; aType: TLuaValueType): TLuaValue;
+    procedure RegisterRoutine(const aName: string; aData: Pointer; aCode: Pointer); overload;
+    procedure RegisterRoutine(const aName: string; aRoutine: TLuaFunction); overload;
+    procedure RegisterRoutines(aClass: TClass); overload;
+    procedure RegisterRoutines(aObject: TObject); overload;
+    procedure RegisterRoutines(const aTables: string; aClass: TClass; const aTableName: string = ''); overload;
+    procedure RegisterRoutines(const aTables: string; aObject: TObject; const aTableName: string = ''); overload;
+  end;
+
+  TLua = class;
+  TLuaContext = class;
+
+  ELuaException = class(Exception);
+
+  ELuaRuntimeException = class(Exception);
+
+  ELuaSyntaxError = class(Exception);
+
+  TLuaContext = class(TNoRefCountObject, ILuaContext)
+  protected
+    FLua: TLua;
+    FPushCount: Integer;
+    FPushFlag: Boolean;
+    procedure Setup;
+    procedure Check;
+    procedure IncStackPushCount;
+    procedure Cleanup;
+    function PushTableForSet(aName: array of string; aIndex: Integer; var aStackIndex: Integer; var aFieldNameIndex: Integer): Boolean;
+    function PushTableForGet(aName: array of string; aIndex: Integer; var aStackIndex: Integer; var aFieldNameIndex: Integer): Boolean;
+  public
+    constructor Create(aLua: TLua);
+    destructor Destroy; override;
+    function ArgCount: Integer;
+    function PushCount: Integer;
+    procedure ClearStack;
+    procedure PopStack(aCount: Integer);
+    function GetStackType(aIndex: Integer): TLuaType;
+    function GetValue(aType: TLuaValueType; aIndex: Integer): TLuaValue; overload;
+    procedure PushValue(aValue: TLuaValue); overload;
+    procedure SetTableFieldValue(const aName: string; aValue: TLuaValue; aIndex: Integer); overload;
+    function  GetTableFieldValue(const aName: string; aType: TLuaValueType; aIndex: Integer): TLuaValue; overload;
+    procedure SetTableIndexValue(const aName: string; aValue: TLuaValue; aIndex: Integer; aKey: Integer);
+    function  GetTableIndexValue(const aName: string; aType: TLuaValueType; aIndex: Integer; aKey: Integer): TLuaValue;
+  end;
+
+  TLua = class(TNoRefCountObject, ILua)
+  protected
+    FState: Pointer;
+    FContext: TLuaContext;
+    FGCStep: Integer;
+    procedure Open;
+    procedure Close;
+    procedure CheckLuaError(const aError: Integer);
+    function  PushGlobalTableForSet(aName: array of string; var aIndex: Integer): Boolean;
+    function  PushGlobalTableForGet(aName: array of string; var aIndex: Integer): Boolean;
+    procedure PushTValue(aValue: TValue);
+    function  CallFunction(const aParams: array of TValue): TValue;
+    procedure SaveByteCode(aStream: TStream);
+    procedure LoadByteCode(aStream: TStream; aName: string; aAutoRun: Boolean = True);
+    procedure Bundle(aInFilename: string; aOutFilename: string);
+    procedure PushLuaValue(aValue: TLuaValue);
+    function  GetLuaValue(aIndex: Integer): TLuaValue;
+    function  DoCall(const aParams: array of TLuaValue): TLuaValue; overload;
+    function  DoCall(aParamCount: Integer): TLuaValue; overload;
+    procedure CleanStack;
+    property  State: Pointer read FState;
+    property  Context: TLuaContext read FContext;
+  public
+    constructor Create; virtual;
+    destructor Destroy; override;
+
+    procedure Reset;
+
+    procedure LoadStream(aStream: TStream; aSize: NativeUInt = 0; aAutoRun: Boolean = True);
+    function  LoadFile(const aFilename: string; aAutoRun: Boolean = True): Boolean;
+    procedure LoadString(const aData: string; aAutoRun: Boolean = True);
+    procedure LoadBuffer(aData: Pointer; aSize: NativeUInt; aAutoRun: Boolean = True);
+
+    function  Call(const aName: string; const aParams: array of TLuaValue): TLuaValue; overload;
+    function  PrepCall(const aName: string): Boolean;
+    function  Call(aParamCount: Integer): TLuaValue; overload;
+    procedure Run;
+
+    function  RoutineExist(const aName: string): Boolean;
+    function  VariableExist(const aName: string): Boolean;
+
+    procedure SetVariable(const aName: string; aValue: TLuaValue);
+    function  GetVariable(const aName: string; aType: TLuaValueType): TLuaValue;
+
+    procedure RegisterRoutine(const aName: string; aData: Pointer; aCode: Pointer); overload;
+    procedure RegisterRoutine(const aName: string; aRoutine: TLuaFunction); overload;
+
+    procedure RegisterRoutines(aClass: TClass); overload;
+    procedure RegisterRoutines(aObject: TObject); overload;
+    procedure RegisterRoutines(const aTables: string; aClass: TClass; const aTableName: string = ''); overload;
+    procedure RegisterRoutines(const aTables: string; aObject: TObject; const aTableName: string = ''); overload;
+
+    procedure SetGCStepSize(aStep: Integer);
+    function  GetGCStepSize: Integer;
+    function  GetGCMemoryUsed: Integer;
+    procedure CollectGarbage;
+
+    procedure CompileToStream(aFilename: string; aStream: TStream; aCleanOutput: Boolean);
+  end;
+
+{$ENDREGION}
+
 {$REGION ' DelphiGamekit.Game '}
 type
   TActorList = class;
@@ -14329,6 +14610,8 @@ type
     procedure OnVideoStatus(const aStatus: TVideoStatus; const aFilename: string); virtual;
     procedure OnBeforeRenderScene(const aSceneNum: Integer); virtual;
     procedure OnAfterRenderScene(const aSceneNum: Integer); virtual;
+    procedure OnPreLuaReset; virtual;
+    procedure OnPostLuaReset; virtual;
   end;
 
   TGameClass = class of TGame;
@@ -14341,6 +14624,145 @@ procedure RunGame(const aGame: TGameClass);
 {$ENDREGION}
 
 implementation
+
+{$REGION ' DelphiGamekit.Deps.LuaJIT '}
+procedure GetLuaExports(const aDLLHandle: Pointer);
+begin
+  if not Assigned(aDllHandle) then Exit;
+
+  lua_gc := MemoryGetProcAddress(aDLLHandle, 'lua_gc');
+  lua_gettop := MemoryGetProcAddress(aDLLHandle, 'lua_gettop');
+  lua_settop := MemoryGetProcAddress(aDLLHandle, 'lua_settop');
+  lua_pushvalue := MemoryGetProcAddress(aDLLHandle, 'lua_pushvalue');
+  lua_call := MemoryGetProcAddress(aDLLHandle, 'lua_call');
+  lua_pcall := MemoryGetProcAddress(aDLLHandle, 'lua_pcall');
+  lua_tonumber := MemoryGetProcAddress(aDLLHandle, 'lua_tonumber');
+  lua_tointeger := MemoryGetProcAddress(aDLLHandle, 'lua_tointeger');
+  lua_toboolean := MemoryGetProcAddress(aDLLHandle, 'lua_toboolean');
+  lua_tolstring := MemoryGetProcAddress(aDLLHandle, 'lua_tolstring');
+  lua_touserdata := MemoryGetProcAddress(aDLLHandle, 'lua_touserdata');
+  lua_topointer := MemoryGetProcAddress(aDLLHandle, 'lua_topointer');
+  lua_close := MemoryGetProcAddress(aDLLHandle, 'lua_close');
+  lua_type := MemoryGetProcAddress(aDLLHandle, 'lua_type');
+  lua_iscfunction := MemoryGetProcAddress(aDLLHandle, 'lua_iscfunction');
+  lua_pushnil := MemoryGetProcAddress(aDLLHandle, 'lua_pushnil');
+  lua_pushnumber := MemoryGetProcAddress(aDLLHandle, 'lua_pushnumber');
+  lua_pushinteger := MemoryGetProcAddress(aDLLHandle, 'lua_pushinteger');
+  lua_pushlstring := MemoryGetProcAddress(aDLLHandle, 'lua_pushlstring');
+  lua_pushstring := MemoryGetProcAddress(aDLLHandle, 'lua_pushstring');
+  lua_pushcclosure := MemoryGetProcAddress(aDLLHandle, 'lua_pushcclosure');
+  lua_pushboolean := MemoryGetProcAddress(aDLLHandle, 'lua_pushboolean');
+  lua_pushlightuserdata := MemoryGetProcAddress(aDLLHandle, 'lua_pushlightuserdata');
+  lua_createtable := MemoryGetProcAddress(aDLLHandle, 'lua_createtable');
+  lua_setfield := MemoryGetProcAddress(aDLLHandle, 'lua_setfield');
+  lua_getfield := MemoryGetProcAddress(aDLLHandle, 'lua_getfield');
+  lua_dump := MemoryGetProcAddress(aDLLHandle, 'lua_dump');
+  lua_rawset := MemoryGetProcAddress(aDLLHandle, 'lua_rawset');
+  lua_load := MemoryGetProcAddress(aDLLHandle, 'lua_load');
+  lua_rawgeti := MemoryGetProcAddress(aDLLHandle, 'lua_rawgeti');
+  lua_rawseti := MemoryGetProcAddress(aDLLHandle, 'lua_rawseti');
+  luaL_newstate := MemoryGetProcAddress(aDLLHandle, 'luaL_newstate');
+  luaL_openlibs := MemoryGetProcAddress(aDLLHandle, 'luaL_openlibs');
+  luaL_loadfile := MemoryGetProcAddress(aDLLHandle, 'luaL_loadfile');
+  luaL_loadstring := MemoryGetProcAddress(aDLLHandle, 'luaL_loadstring');
+  luaL_loadbuffer := MemoryGetProcAddress(aDLLHandle, 'luaL_loadbuffer');
+end;
+
+function lua_isfunction(aState: Pointer; n: Integer): Boolean; inline;
+begin
+  Result := Boolean(lua_type(aState, n) = LUA_TFUNCTION);
+end;
+
+function lua_isvariable(aState: Pointer; n: Integer): Boolean; inline;
+var
+  aType: Integer;
+begin
+  aType := lua_type(aState, n);
+
+  if (aType = LUA_TBOOLEAN) or (aType = LUA_TLIGHTUSERDATA) or (aType = LUA_TNUMBER) or (aType = LUA_TSTRING) then
+    Result := True
+  else
+    Result := False;
+end;
+
+procedure lua_newtable(aState: Pointer); inline;
+begin
+  lua_createtable(aState, 0, 0);
+end;
+
+procedure lua_pop(aState: Pointer; n: Integer); inline;
+begin
+  lua_settop(aState, -n - 1);
+end;
+
+procedure lua_getglobal(aState: Pointer; aName: PAnsiChar); inline;
+begin
+  lua_getfield(aState, LUA_GLOBALSINDEX, aName);
+end;
+
+procedure lua_setglobal(aState: Pointer; aName: PAnsiChar); inline;
+begin
+  lua_setfield(aState, LUA_GLOBALSINDEX, aName);
+end;
+
+procedure lua_pushcfunction(aState: Pointer; aFunc: TLuaCFunction); inline;
+begin
+  lua_pushcclosure(aState, aFunc, 0);
+end;
+
+procedure lua_register(aState: Pointer; aName: PAnsiChar; aFunc: TLuaCFunction); inline;
+begin
+  lua_pushcfunction(aState, aFunc);
+  lua_setglobal(aState, aName);
+end;
+
+function lua_isnil(aState: Pointer; n: Integer): Boolean; inline;
+begin
+  Result := Boolean(lua_type(aState, n) = LUA_TNIL);
+end;
+
+function lua_tostring(aState: Pointer; idx: Integer): string; inline;
+begin
+  Result := string(lua_tolstring(aState, idx, nil));
+end;
+
+function luaL_dofile(aState: Pointer; aFilename: PAnsiChar): Integer; inline;
+Var
+  Res: Integer;
+begin
+  Res := luaL_loadfile(aState, aFilename);
+  if Res = 0 then
+    Res := lua_pcall(aState, 0, 0, 0);
+  Result := Res;
+end;
+
+function luaL_dostring(aState: Pointer; aStr: PAnsiChar): Integer; inline;
+Var
+  Res: Integer;
+begin
+  Res := luaL_loadstring(aState, aStr);
+  if Res = 0 then
+    Res := lua_pcall(aState, 0, 0, 0);
+  Result := Res;
+end;
+
+function luaL_dobuffer(aState: Pointer; aBuffer: Pointer; aSize: NativeUInt;
+  aName: PAnsiChar): Integer; inline;
+var
+  Res: Integer;
+begin
+  Res := luaL_loadbuffer(aState, aBuffer, aSize, aName);
+  if Res = 0 then
+    Res := lua_pcall(aState, 0, 0, 0);
+  Result := Res;
+end;
+
+function lua_upvalueindex(i: Integer): Integer; inline;
+begin
+  Result := LUA_GLOBALSINDEX - i;
+end;
+
+{$ENDREGION}
 
 {$REGION ' DelphiGamekit.Deps.SDL2 '}
 procedure GetExports(const aDLLHandle: Pointer);
@@ -16192,6 +16614,7 @@ begin
   end;
   if not Assigned(DllHandle) then Exit;
   GetExports(DllHandle);
+  GetLuaExports(DllHandle);
 end;
 
 procedure UnloadDLL;
@@ -25608,7 +26031,6 @@ var
   LDevice: TInputDevice;
   LData: Integer;
   LPath: string;
-  LSize: Int64;
 begin
   Result := False;
   if aFilename = '' then Exit;
@@ -28722,6 +29144,2076 @@ end;
 
 {$ENDREGION}
 
+{$REGION ' DelphiGamekit.Scripting '}
+const
+  cLuaAutoSetup = 'AutoSetup';
+
+{$REGION 'Loaders'}
+const cLOADER_LUA : array[1..436] of Byte = (
+$2D, $2D, $20, $55, $74, $69, $6C, $69, $74, $79, $20, $66, $75, $6E, $63, $74,
+$69, $6F, $6E, $20, $66, $6F, $72, $20, $68, $61, $76, $69, $6E, $67, $20, $61,
+$20, $77, $6F, $72, $6B, $69, $6E, $67, $20, $69, $6D, $70, $6F, $72, $74, $20,
+$66, $75, $6E, $63, $74, $69, $6F, $6E, $0A, $2D, $2D, $20, $46, $65, $65, $6C,
+$20, $66, $72, $65, $65, $20, $74, $6F, $20, $75, $73, $65, $20, $69, $74, $20,
+$69, $6E, $20, $79, $6F, $75, $72, $20, $6F, $77, $6E, $20, $70, $72, $6F, $6A,
+$65, $63, $74, $73, $0A, $28, $66, $75, $6E, $63, $74, $69, $6F, $6E, $28, $29,
+$0A, $20, $20, $20, $20, $6C, $6F, $63, $61, $6C, $20, $73, $63, $72, $69, $70,
+$74, $5F, $63, $61, $63, $68, $65, $20, $3D, $20, $7B, $7D, $3B, $0A, $20, $20,
+$20, $20, $66, $75, $6E, $63, $74, $69, $6F, $6E, $20, $69, $6D, $70, $6F, $72,
+$74, $28, $6E, $61, $6D, $65, $29, $0A, $20, $20, $20, $20, $20, $20, $20, $20,
+$69, $66, $20, $73, $63, $72, $69, $70, $74, $5F, $63, $61, $63, $68, $65, $5B,
+$6E, $61, $6D, $65, $5D, $20, $3D, $3D, $20, $6E, $69, $6C, $20, $74, $68, $65,
+$6E, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $73, $63,
+$72, $69, $70, $74, $5F, $63, $61, $63, $68, $65, $5B, $6E, $61, $6D, $65, $5D,
+$20, $3D, $20, $6C, $6F, $61, $64, $66, $69, $6C, $65, $28, $6E, $61, $6D, $65,
+$29, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $65, $6E, $64, $0A, $20, $20,
+$20, $20, $20, $20, $20, $20, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $69,
+$66, $20, $73, $63, $72, $69, $70, $74, $5F, $63, $61, $63, $68, $65, $5B, $6E,
+$61, $6D, $65, $5D, $20, $7E, $3D, $20, $6E, $69, $6C, $20, $74, $68, $65, $6E,
+$0A, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $72, $65, $74,
+$75, $72, $6E, $20, $73, $63, $72, $69, $70, $74, $5F, $63, $61, $63, $68, $65,
+$5B, $6E, $61, $6D, $65, $5D, $28, $29, $0A, $20, $20, $20, $20, $20, $20, $20,
+$20, $65, $6E, $64, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $65, $72, $72,
+$6F, $72, $28, $22, $46, $61, $69, $6C, $65, $64, $20, $74, $6F, $20, $6C, $6F,
+$61, $64, $20, $73, $63, $72, $69, $70, $74, $20, $22, $20, $2E, $2E, $20, $6E,
+$61, $6D, $65, $29, $0A, $20, $20, $20, $20, $65, $6E, $64, $0A, $65, $6E, $64,
+$29, $28, $29, $0A
+);
+
+
+const cLUABUNDLE_LUA : array[1..3478] of Byte = (
+$28, $66, $75, $6E, $63, $74, $69, $6F, $6E, $28, $61, $72, $67, $73, $29, $0D,
+$0A, $6C, $6F, $63, $61, $6C, $20, $6D, $6F, $64, $75, $6C, $65, $73, $20, $3D,
+$20, $7B, $7D, $0D, $0A, $6D, $6F, $64, $75, $6C, $65, $73, $5B, $27, $61, $70,
+$70, $2F, $62, $75, $6E, $64, $6C, $65, $5F, $6D, $61, $6E, $61, $67, $65, $72,
+$2E, $6C, $75, $61, $27, $5D, $20, $3D, $20, $66, $75, $6E, $63, $74, $69, $6F,
+$6E, $28, $2E, $2E, $2E, $29, $0D, $0A, $2D, $2D, $20, $43, $6C, $61, $73, $73,
+$20, $66, $6F, $72, $20, $63, $6F, $6C, $6C, $65, $63, $74, $69, $6E, $67, $20,
+$74, $68, $65, $20, $66, $69, $6C, $65, $27, $73, $20, $63, $6F, $6E, $74, $65,
+$6E, $74, $20, $61, $6E, $64, $20, $62, $75, $69, $6C, $64, $69, $6E, $67, $20,
+$61, $20, $62, $75, $6E, $64, $6C, $65, $20, $66, $69, $6C, $65, $0D, $0A, $6C,
+$6F, $63, $61, $6C, $20, $73, $6F, $75, $72, $63, $65, $5F, $70, $61, $72, $73,
+$65, $72, $20, $3D, $20, $69, $6D, $70, $6F, $72, $74, $28, $22, $61, $70, $70,
+$2F, $73, $6F, $75, $72, $63, $65, $5F, $70, $61, $72, $73, $65, $72, $2E, $6C,
+$75, $61, $22, $29, $0D, $0A, $0D, $0A, $72, $65, $74, $75, $72, $6E, $20, $66,
+$75, $6E, $63, $74, $69, $6F, $6E, $28, $65, $6E, $74, $72, $79, $5F, $70, $6F,
+$69, $6E, $74, $29, $0D, $0A, $20, $20, $20, $20, $6C, $6F, $63, $61, $6C, $20,
+$73, $65, $6C, $66, $20, $3D, $20, $7B, $7D, $0D, $0A, $20, $20, $20, $20, $6C,
+$6F, $63, $61, $6C, $20, $66, $69, $6C, $65, $73, $20, $3D, $20, $7B, $7D, $0D,
+$0A, $20, $20, $20, $20, $0D, $0A, $20, $20, $20, $20, $2D, $2D, $20, $53, $65,
+$61, $72, $63, $68, $65, $73, $20, $74, $68, $65, $20, $67, $69, $76, $65, $6E,
+$20, $66, $69, $6C, $65, $20, $72, $65, $63, $75, $72, $73, $69, $76, $65, $6C,
+$79, $20, $66, $6F, $72, $20, $69, $6D, $70, $6F, $72, $74, $20, $66, $75, $6E,
+$63, $74, $69, $6F, $6E, $20, $63, $61, $6C, $6C, $73, $0D, $0A, $20, $20, $20,
+$20, $73, $65, $6C, $66, $2E, $70, $72, $6F, $63, $65, $73, $73, $5F, $66, $69,
+$6C, $65, $20, $3D, $20, $66, $75, $6E, $63, $74, $69, $6F, $6E, $28, $66, $69,
+$6C, $65, $6E, $61, $6D, $65, $29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20,
+$20, $6C, $6F, $63, $61, $6C, $20, $70, $61, $72, $73, $65, $72, $20, $3D, $20,
+$73, $6F, $75, $72, $63, $65, $5F, $70, $61, $72, $73, $65, $72, $28, $66, $69,
+$6C, $65, $6E, $61, $6D, $65, $29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20,
+$20, $66, $69, $6C, $65, $73, $5B, $66, $69, $6C, $65, $6E, $61, $6D, $65, $5D,
+$20, $3D, $20, $70, $61, $72, $73, $65, $72, $2E, $63, $6F, $6E, $74, $65, $6E,
+$74, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $0D, $0A, $20, $20, $20,
+$20, $20, $20, $20, $20, $66, $6F, $72, $20, $5F, $2C, $20, $66, $20, $69, $6E,
+$20, $70, $61, $69, $72, $73, $28, $70, $61, $72, $73, $65, $72, $2E, $69, $6E,
+$63, $6C, $75, $64, $65, $73, $29, $20, $64, $6F, $0D, $0A, $20, $20, $20, $20,
+$20, $20, $20, $20, $20, $20, $20, $20, $73, $65, $6C, $66, $2E, $70, $72, $6F,
+$63, $65, $73, $73, $5F, $66, $69, $6C, $65, $28, $66, $29, $0D, $0A, $20, $20,
+$20, $20, $20, $20, $20, $20, $65, $6E, $64, $0D, $0A, $20, $20, $20, $20, $65,
+$6E, $64, $0D, $0A, $20, $20, $20, $20, $0D, $0A, $20, $20, $20, $20, $2D, $2D,
+$20, $43, $72, $65, $61, $74, $65, $20, $61, $20, $62, $75, $6E, $64, $6C, $65,
+$20, $66, $69, $6C, $65, $20, $77, $68, $69, $63, $68, $20, $63, $6F, $6E, $74,
+$61, $69, $6E, $73, $20, $74, $68, $65, $20, $64, $65, $74, $65, $63, $74, $65,
+$64, $20, $66, $69, $6C, $65, $73, $0D, $0A, $20, $20, $20, $20, $73, $65, $6C,
+$66, $2E, $62, $75, $69, $6C, $64, $5F, $62, $75, $6E, $64, $6C, $65, $20, $3D,
+$20, $66, $75, $6E, $63, $74, $69, $6F, $6E, $28, $64, $65, $73, $74, $5F, $66,
+$69, $6C, $65, $29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $6C, $6F,
+$63, $61, $6C, $20, $66, $69, $6C, $65, $20, $3D, $20, $69, $6F, $2E, $6F, $70,
+$65, $6E, $28, $64, $65, $73, $74, $5F, $66, $69, $6C, $65, $2C, $20, $22, $77,
+$22, $29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $0D, $0A, $20, $20,
+$20, $20, $20, $20, $20, $20, $66, $69, $6C, $65, $3A, $77, $72, $69, $74, $65,
+$28, $22, $28, $66, $75, $6E, $63, $74, $69, $6F, $6E, $28, $61, $72, $67, $73,
+$29, $5C, $6E, $22, $29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $66,
+$69, $6C, $65, $3A, $77, $72, $69, $74, $65, $28, $22, $6C, $6F, $63, $61, $6C,
+$20, $6D, $6F, $64, $75, $6C, $65, $73, $20, $3D, $20, $7B, $7D, $5C, $6E, $22,
+$29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $0D, $0A, $20, $20, $20,
+$20, $20, $20, $20, $20, $2D, $2D, $20, $43, $72, $65, $61, $74, $65, $20, $61,
+$20, $73, $6F, $72, $74, $65, $64, $20, $6C, $69, $73, $74, $20, $6F, $66, $20,
+$6B, $65, $79, $73, $20, $73, $6F, $20, $74, $68, $65, $20, $6F, $75, $74, $70,
+$75, $74, $20, $77, $69, $6C, $6C, $20, $62, $65, $20, $74, $68, $65, $20, $73,
+$61, $6D, $65, $20, $77, $68, $65, $6E, $20, $74, $68, $65, $20, $69, $6E, $70,
+$75, $74, $20, $64, $6F, $65, $73, $20, $6E, $6F, $74, $20, $63, $68, $61, $6E,
+$67, $65, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $6C, $6F, $63, $61,
+$6C, $20, $66, $69, $6C, $65, $6E, $61, $6D, $65, $73, $20, $3D, $20, $7B, $7D,
+$0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $66, $6F, $72, $20, $66, $69,
+$6C, $65, $6E, $61, $6D, $65, $2C, $20, $5F, $20, $69, $6E, $20, $70, $61, $69,
+$72, $73, $28, $66, $69, $6C, $65, $73, $29, $20, $64, $6F, $0D, $0A, $20, $20,
+$20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $74, $61, $62, $6C, $65, $2E,
+$69, $6E, $73, $65, $72, $74, $28, $66, $69, $6C, $65, $6E, $61, $6D, $65, $73,
+$2C, $20, $66, $69, $6C, $65, $6E, $61, $6D, $65, $29, $0D, $0A, $20, $20, $20,
+$20, $20, $20, $20, $20, $65, $6E, $64, $0D, $0A, $20, $20, $20, $20, $20, $20,
+$20, $20, $74, $61, $62, $6C, $65, $2E, $73, $6F, $72, $74, $28, $66, $69, $6C,
+$65, $6E, $61, $6D, $65, $73, $29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20,
+$20, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $2D, $2D, $20, $41, $64,
+$64, $20, $66, $69, $6C, $65, $73, $20, $61, $73, $20, $6D, $6F, $64, $75, $6C,
+$65, $73, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $66, $6F, $72, $20,
+$5F, $2C, $20, $66, $69, $6C, $65, $6E, $61, $6D, $65, $20, $69, $6E, $20, $70,
+$61, $69, $72, $73, $28, $66, $69, $6C, $65, $6E, $61, $6D, $65, $73, $29, $20,
+$64, $6F, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20,
+$66, $69, $6C, $65, $3A, $77, $72, $69, $74, $65, $28, $22, $6D, $6F, $64, $75,
+$6C, $65, $73, $5B, $27, $22, $29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20,
+$20, $20, $20, $20, $20, $66, $69, $6C, $65, $3A, $77, $72, $69, $74, $65, $28,
+$66, $69, $6C, $65, $6E, $61, $6D, $65, $29, $0D, $0A, $20, $20, $20, $20, $20,
+$20, $20, $20, $20, $20, $20, $20, $66, $69, $6C, $65, $3A, $77, $72, $69, $74,
+$65, $28, $22, $27, $5D, $20, $3D, $20, $66, $75, $6E, $63, $74, $69, $6F, $6E,
+$28, $2E, $2E, $2E, $29, $5C, $6E, $22, $29, $0D, $0A, $20, $20, $20, $20, $20,
+$20, $20, $20, $20, $20, $20, $20, $66, $69, $6C, $65, $3A, $77, $72, $69, $74,
+$65, $28, $66, $69, $6C, $65, $73, $5B, $66, $69, $6C, $65, $6E, $61, $6D, $65,
+$5D, $29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20,
+$66, $69, $6C, $65, $3A, $77, $72, $69, $74, $65, $28, $22, $5C, $6E, $22, $29,
+$0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $20, $66, $69,
+$6C, $65, $3A, $77, $72, $69, $74, $65, $28, $22, $65, $6E, $64, $5C, $6E, $22,
+$29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $65, $6E, $64, $0D, $0A,
+$20, $20, $20, $20, $20, $20, $20, $20, $66, $69, $6C, $65, $3A, $77, $72, $69,
+$74, $65, $28, $22, $66, $75, $6E, $63, $74, $69, $6F, $6E, $20, $69, $6D, $70,
+$6F, $72, $74, $28, $6E, $29, $5C, $6E, $22, $29, $0D, $0A, $20, $20, $20, $20,
+$20, $20, $20, $20, $66, $69, $6C, $65, $3A, $77, $72, $69, $74, $65, $28, $22,
+$72, $65, $74, $75, $72, $6E, $20, $6D, $6F, $64, $75, $6C, $65, $73, $5B, $6E,
+$5D, $28, $74, $61, $62, $6C, $65, $2E, $75, $6E, $70, $61, $63, $6B, $28, $61,
+$72, $67, $73, $29, $29, $5C, $6E, $22, $29, $0D, $0A, $20, $20, $20, $20, $20,
+$20, $20, $20, $66, $69, $6C, $65, $3A, $77, $72, $69, $74, $65, $28, $22, $65,
+$6E, $64, $5C, $6E, $22, $29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20,
+$0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $66, $69, $6C, $65, $3A, $77,
+$72, $69, $74, $65, $28, $22, $6C, $6F, $63, $61, $6C, $20, $65, $6E, $74, $72,
+$79, $20, $3D, $20, $69, $6D, $70, $6F, $72, $74, $28, $27, $22, $20, $2E, $2E,
+$20, $65, $6E, $74, $72, $79, $5F, $70, $6F, $69, $6E, $74, $20, $2E, $2E, $20,
+$22, $27, $29, $5C, $6E, $22, $29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20,
+$20, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $66, $69, $6C, $65, $3A,
+$77, $72, $69, $74, $65, $28, $22, $65, $6E, $64, $29, $28, $7B, $2E, $2E, $2E,
+$7D, $29, $22, $29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $66, $69,
+$6C, $65, $3A, $66, $6C, $75, $73, $68, $28, $29, $0D, $0A, $20, $20, $20, $20,
+$20, $20, $20, $20, $66, $69, $6C, $65, $3A, $63, $6C, $6F, $73, $65, $28, $29,
+$0D, $0A, $20, $20, $20, $20, $65, $6E, $64, $0D, $0A, $20, $20, $20, $20, $0D,
+$0A, $20, $20, $20, $20, $72, $65, $74, $75, $72, $6E, $20, $73, $65, $6C, $66,
+$0D, $0A, $65, $6E, $64, $0D, $0A, $65, $6E, $64, $0D, $0A, $6D, $6F, $64, $75,
+$6C, $65, $73, $5B, $27, $61, $70, $70, $2F, $6D, $61, $69, $6E, $2E, $6C, $75,
+$61, $27, $5D, $20, $3D, $20, $66, $75, $6E, $63, $74, $69, $6F, $6E, $28, $2E,
+$2E, $2E, $29, $0D, $0A, $2D, $2D, $20, $4D, $61, $69, $6E, $20, $66, $75, $6E,
+$63, $74, $69, $6F, $6E, $20, $6F, $66, $20, $74, $68, $65, $20, $70, $72, $6F,
+$67, $72, $61, $6D, $0D, $0A, $6C, $6F, $63, $61, $6C, $20, $62, $75, $6E, $64,
+$6C, $65, $5F, $6D, $61, $6E, $61, $67, $65, $72, $20, $3D, $20, $69, $6D, $70,
+$6F, $72, $74, $28, $22, $61, $70, $70, $2F, $62, $75, $6E, $64, $6C, $65, $5F,
+$6D, $61, $6E, $61, $67, $65, $72, $2E, $6C, $75, $61, $22, $29, $0D, $0A, $0D,
+$0A, $72, $65, $74, $75, $72, $6E, $20, $66, $75, $6E, $63, $74, $69, $6F, $6E,
+$28, $61, $72, $67, $73, $29, $0D, $0A, $20, $20, $20, $20, $69, $66, $20, $23,
+$61, $72, $67, $73, $20, $3D, $3D, $20, $31, $20, $61, $6E, $64, $20, $61, $72,
+$67, $73, $5B, $31, $5D, $20, $3D, $3D, $20, $22, $2D, $76, $22, $20, $74, $68,
+$65, $6E, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $70, $72, $69, $6E,
+$74, $28, $22, $6C, $75, $61, $62, $75, $6E, $64, $6C, $65, $20, $76, $30, $2E,
+$30, $31, $22, $29, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $6F, $73,
+$2E, $65, $78, $69, $74, $28, $29, $0D, $0A, $20, $20, $20, $20, $65, $6C, $73,
+$65, $69, $66, $20, $23, $61, $72, $67, $73, $20, $7E, $3D, $20, $32, $20, $74,
+$68, $65, $6E, $0D, $0A, $20, $20, $20, $20, $20, $20, $20, $20, $70, $72, $69,
+$6E, $74, $28, $22, $75, $73, $61, $67, $65, $3A, $20, $6C, $75, $61, $62, $75,
+$6E, $64, $6C, $65, $20, $69, $6E, $20, $6F, $75, $74, $22, $29, $0D, $0A, $20,
+$20, $20, $20, $20, $20, $20, $20, $6F, $73, $2E, $65, $78, $69, $74, $28, $29,
+$0D, $0A, $20, $20, $20, $20, $65, $6E, $64, $0D, $0A, $20, $20, $20, $20, $0D,
+$0A, $20, $20, $20, $20, $6C, $6F, $63, $61, $6C, $20, $69, $6E, $66, $69, $6C,
+$65, $20, $3D, $20, $61, $72, $67, $73, $5B, $31, $5D, $0D, $0A, $20, $20, $20,
+$20, $6C, $6F, $63, $61, $6C, $20, $6F, $75, $74, $66, $69, $6C, $65, $20, $3D,
+$20, $61, $72, $67, $73, $5B, $32, $5D, $0D, $0A, $20, $20, $20, $20, $6C, $6F,
+$63, $61, $6C, $20, $62, $75, $6E, $64, $6C, $65, $20, $3D, $20, $62, $75, $6E,
+$64, $6C, $65, $5F, $6D, $61, $6E, $61, $67, $65, $72, $28, $69, $6E, $66, $69,
+$6C, $65, $29, $0D, $0A, $20, $20, $20, $20, $62, $75, $6E, $64, $6C, $65, $2E,
+$70, $72, $6F, $63, $65, $73, $73, $5F, $66, $69, $6C, $65, $28, $69, $6E, $66,
+$69, $6C, $65, $2C, $20, $62, $75, $6E, $64, $6C, $65, $29, $0D, $0A, $20, $20,
+$20, $20, $0D, $0A, $20, $20, $20, $20, $62, $75, $6E, $64, $6C, $65, $2E, $62,
+$75, $69, $6C, $64, $5F, $62, $75, $6E, $64, $6C, $65, $28, $6F, $75, $74, $66,
+$69, $6C, $65, $29, $0D, $0A, $65, $6E, $64, $0D, $0A, $65, $6E, $64, $0D, $0A,
+$6D, $6F, $64, $75, $6C, $65, $73, $5B, $27, $61, $70, $70, $2F, $73, $6F, $75,
+$72, $63, $65, $5F, $70, $61, $72, $73, $65, $72, $2E, $6C, $75, $61, $27, $5D,
+$20, $3D, $20, $66, $75, $6E, $63, $74, $69, $6F, $6E, $28, $2E, $2E, $2E, $29,
+$0D, $0A, $2D, $2D, $20, $43, $6C, $61, $73, $73, $20, $66, $6F, $72, $20, $65,
+$78, $74, $72, $61, $63, $74, $69, $6E, $67, $20, $69, $6D, $70, $6F, $72, $74,
+$20, $66, $75, $6E, $63, $74, $69, $6F, $6E, $20, $63, $61, $6C, $6C, $73, $20,
+$66, $72, $6F, $6D, $20, $73, $6F, $75, $72, $63, $65, $20, $66, $69, $6C, $65,
+$73, $0D, $0A, $72, $65, $74, $75, $72, $6E, $20, $66, $75, $6E, $63, $74, $69,
+$6F, $6E, $28, $66, $69, $6C, $65, $6E, $61, $6D, $65, $29, $0D, $0A, $20, $20,
+$20, $20, $6C, $6F, $63, $61, $6C, $20, $66, $69, $6C, $65, $20, $3D, $20, $69,
+$6F, $2E, $6F, $70, $65, $6E, $28, $66, $69, $6C, $65, $6E, $61, $6D, $65, $2C,
+$20, $22, $72, $22, $29, $0D, $0A, $20, $20, $20, $20, $69, $66, $20, $66, $69,
+$6C, $65, $20, $3D, $3D, $20, $6E, $69, $6C, $20, $74, $68, $65, $6E, $0D, $0A,
+$20, $20, $20, $20, $20, $20, $20, $20, $65, $72, $72, $6F, $72, $28, $22, $46,
+$69, $6C, $65, $20, $6E, $6F, $74, $20, $66, $6F, $75, $6E, $64, $3A, $20, $22,
+$20, $2E, $2E, $20, $66, $69, $6C, $65, $6E, $61, $6D, $65, $29, $0D, $0A, $20,
+$20, $20, $20, $65, $6E, $64, $0D, $0A, $20, $20, $20, $20, $6C, $6F, $63, $61,
+$6C, $20, $66, $69, $6C, $65, $5F, $63, $6F, $6E, $74, $65, $6E, $74, $20, $3D,
+$20, $66, $69, $6C, $65, $3A, $72, $65, $61, $64, $28, $22, $2A, $61, $22, $29,
+$0D, $0A, $20, $20, $20, $20, $66, $69, $6C, $65, $3A, $63, $6C, $6F, $73, $65,
+$28, $29, $0D, $0A, $20, $20, $20, $20, $6C, $6F, $63, $61, $6C, $20, $69, $6E,
+$63, $6C, $75, $64, $65, $64, $5F, $66, $69, $6C, $65, $73, $20, $3D, $20, $7B,
+$7D, $0D, $0A, $20, $20, $20, $20, $0D, $0A, $20, $20, $20, $20, $2D, $2D, $20,
+$53, $65, $61, $72, $63, $68, $20, $66, $6F, $72, $20, $69, $6D, $70, $6F, $72,
+$74, $28, $29, $20, $63, $61, $6C, $6C, $73, $20, $77, $69, $74, $68, $20, $64,
+$6F, $62, $75, $6C, $65, $20, $71, $75, $6F, $74, $65, $73, $20, $28, $21, $29,
+$0D, $0A, $20, $20, $20, $20, $66, $6F, $72, $20, $66, $20, $69, $6E, $20, $73,
+$74, $72, $69, $6E, $67, $2E, $67, $6D, $61, $74, $63, $68, $28, $66, $69, $6C,
+$65, $5F, $63, $6F, $6E, $74, $65, $6E, $74, $2C, $20, $27, $69, $6D, $70, $6F,
+$72, $74, $25, $28, $5B, $22, $5C, $27, $5D, $28, $5B, $5E, $5C, $27, $22, $5D,
+$2D, $29, $5B, $22, $5C, $27, $5D, $25, $29, $27, $29, $20, $64, $6F, $0D, $0A,
+$20, $20, $20, $20, $20, $20, $20, $20, $74, $61, $62, $6C, $65, $2E, $69, $6E,
+$73, $65, $72, $74, $28, $69, $6E, $63, $6C, $75, $64, $65, $64, $5F, $66, $69,
+$6C, $65, $73, $2C, $20, $66, $29, $0D, $0A, $20, $20, $20, $20, $65, $6E, $64,
+$0D, $0A, $20, $20, $20, $20, $0D, $0A, $20, $20, $20, $20, $73, $65, $6C, $66,
+$20, $3D, $20, $7B, $7D, $0D, $0A, $20, $20, $20, $20, $73, $65, $6C, $66, $2E,
+$66, $69, $6C, $65, $6E, $61, $6D, $65, $20, $3D, $20, $66, $69, $6C, $65, $6E,
+$61, $6D, $65, $0D, $0A, $20, $20, $20, $20, $73, $65, $6C, $66, $2E, $63, $6F,
+$6E, $74, $65, $6E, $74, $20, $3D, $20, $66, $69, $6C, $65, $5F, $63, $6F, $6E,
+$74, $65, $6E, $74, $0D, $0A, $20, $20, $20, $20, $73, $65, $6C, $66, $2E, $69,
+$6E, $63, $6C, $75, $64, $65, $73, $20, $3D, $20, $69, $6E, $63, $6C, $75, $64,
+$65, $64, $5F, $66, $69, $6C, $65, $73, $0D, $0A, $20, $20, $20, $20, $72, $65,
+$74, $75, $72, $6E, $20, $73, $65, $6C, $66, $0D, $0A, $65, $6E, $64, $0D, $0A,
+$65, $6E, $64, $0D, $0A, $6D, $6F, $64, $75, $6C, $65, $73, $5B, $27, $6C, $75,
+$61, $62, $75, $6E, $64, $6C, $65, $2E, $6C, $75, $61, $27, $5D, $20, $3D, $20,
+$66, $75, $6E, $63, $74, $69, $6F, $6E, $28, $2E, $2E, $2E, $29, $0D, $0A, $2D,
+$2D, $20, $45, $6E, $74, $72, $79, $20, $70, $6F, $69, $6E, $74, $20, $6F, $66,
+$20, $74, $68, $65, $20, $70, $72, $6F, $67, $72, $61, $6D, $2E, $0D, $0A, $2D,
+$2D, $20, $4F, $6E, $6C, $79, $20, $62, $61, $73, $69, $63, $20, $73, $74, $75,
+$66, $66, $20, $69, $73, $20, $73, $65, $74, $20, $75, $70, $20, $68, $65, $72,
+$65, $2C, $20, $74, $68, $65, $20, $61, $63, $74, $75, $61, $6C, $20, $70, $72,
+$6F, $67, $72, $61, $6D, $20, $69, $73, $20, $69, $6E, $20, $61, $70, $70, $2F,
+$6D, $61, $69, $6E, $2E, $6C, $75, $61, $0D, $0A, $6C, $6F, $63, $61, $6C, $20,
+$61, $72, $67, $73, $20, $3D, $20, $7B, $2E, $2E, $2E, $7D, $0D, $0A, $0D, $0A,
+$2D, $2D, $20, $43, $68, $65, $63, $6B, $20, $69, $66, $20, $77, $65, $20, $61,
+$72, $65, $20, $61, $6C, $72, $65, $61, $64, $79, $20, $62, $75, $6E, $64, $6C,
+$65, $64, $0D, $0A, $69, $66, $20, $69, $6D, $70, $6F, $72, $74, $20, $3D, $3D,
+$20, $6E, $69, $6C, $20, $74, $68, $65, $6E, $0D, $0A, $20, $20, $20, $20, $64,
+$6F, $66, $69, $6C, $65, $28, $22, $75, $74, $69, $6C, $2F, $6C, $6F, $61, $64,
+$65, $72, $2E, $6C, $75, $61, $22, $29, $0D, $0A, $65, $6E, $64, $0D, $0A, $0D,
+$0A, $69, $6D, $70, $6F, $72, $74, $28, $22, $61, $70, $70, $2F, $6D, $61, $69,
+$6E, $2E, $6C, $75, $61, $22, $29, $28, $61, $72, $67, $73, $29, $0D, $0A, $65,
+$6E, $64, $0D, $0A, $66, $75, $6E, $63, $74, $69, $6F, $6E, $20, $69, $6D, $70,
+$6F, $72, $74, $28, $6E, $29, $0D, $0A, $72, $65, $74, $75, $72, $6E, $20, $6D,
+$6F, $64, $75, $6C, $65, $73, $5B, $6E, $5D, $28, $74, $61, $62, $6C, $65, $2E,
+$75, $6E, $70, $61, $63, $6B, $28, $61, $72, $67, $73, $29, $29, $0D, $0A, $65,
+$6E, $64, $0D, $0A, $6C, $6F, $63, $61, $6C, $20, $65, $6E, $74, $72, $79, $20,
+$3D, $20, $69, $6D, $70, $6F, $72, $74, $28, $27, $6C, $75, $61, $62, $75, $6E,
+$64, $6C, $65, $2E, $6C, $75, $61, $27, $29, $0D, $0A, $65, $6E, $64, $29, $28,
+$7B, $2E, $2E, $2E, $7D, $29
+);
+
+
+{$ENDREGION}
+
+function LuaWrapperClosure(aState: Pointer): Integer; cdecl;
+var
+  LMethod: TMethod;
+  LClosure: TLuaFunction absolute LMethod;
+  LLua: TLua;
+begin
+  LLua := lua_touserdata(aState, lua_upvalueindex(1));
+
+  LMethod.Code := lua_touserdata(aState, lua_upvalueindex(2));
+  LMethod.Data := lua_touserdata(aState, lua_upvalueindex(3));
+
+  LLua.Context.Setup;
+
+  LClosure(LLua.Context);
+
+  Result := LLua.Context.PushCount;
+
+  LLua.Context.Cleanup;
+end;
+
+function LuaWrapperWriter(aState: Pointer; const aBuffer: Pointer; aSize: NativeUInt; aData: Pointer): Integer; cdecl;
+var
+  LStream: TStream;
+begin
+  LStream := TStream(aData);
+  try
+    LStream.WriteBuffer(aBuffer^, aSize);
+    Result := 0;
+  except
+    on E: EStreamError do
+      Result := 1;
+  end;
+end;
+
+class operator TLuaValue.Implicit(const aValue: Integer): TLuaValue;
+begin
+  Result.AsType := vtInteger;
+  Result.AsInteger := aValue;
+end;
+
+class operator TLuaValue.Implicit(aValue: Double): TLuaValue;
+begin
+  Result.AsType := vtDouble;
+  Result.AsNumber := aValue;
+end;
+
+class operator TLuaValue.Implicit(aValue: System.PChar): TLuaValue;
+begin
+  Result.AsType := vtString;
+  Result.AsString := aValue;
+end;
+
+class operator TLuaValue.Implicit(aValue: TLuaTable): TLuaValue;
+begin
+  Result.AsType := vtTable;
+  Result.AsTable := aValue;
+end;
+
+class operator TLuaValue.Implicit(aValue: Pointer): TLuaValue;
+begin
+  Result.AsType := vtPointer;
+  Result.AsPointer := aValue;
+end;
+
+class operator TLuaValue.Implicit(aValue: Boolean): TLuaValue;
+begin
+  Result.AsType := vtBoolean;
+  Result.AsBoolean := aValue;
+end;
+
+class operator TLuaValue.Implicit(aValue: TLuaValue): Integer;
+begin
+  Result := aValue.AsInteger;
+end;
+
+class operator TLuaValue.Implicit(aValue: TLuaValue): Double;
+begin
+  Result := aValue.AsNumber;
+end;
+
+var TLuaValue_Implicit_LValue: string = '';
+class operator TLuaValue.Implicit(aValue: TLuaValue): System.PChar;
+begin
+  TLuaValue_Implicit_LValue := aValue.AsString;
+  Result := PChar(TLuaValue_Implicit_LValue);
+end;
+
+class operator TLuaValue.Implicit(aValue: TLuaValue): Pointer;
+begin
+  Result := aValue.AsPointer
+end;
+
+class operator TLuaValue.Implicit(aValue: TLuaValue): Boolean;
+begin
+  Result := aValue.AsBoolean;
+end;
+
+function ParseTableNames(aNames: string): TStringDynArray;
+var
+  LItems: TArray<string>;
+  LI: Integer;
+begin
+  LItems := aNames.Split(['.']);
+  SetLength(Result, Length(LItems));
+  for LI := 0 to High(LItems) do
+  begin
+    Result[LI] := LItems[LI];
+  end;
+end;
+
+procedure TLuaContext.Setup;
+begin
+  FPushCount := 0;
+  FPushFlag := True;
+end;
+
+procedure TLuaContext.Check;
+begin
+  if FPushFlag then
+  begin
+    FPushFlag := False;
+    ClearStack;
+  end;
+end;
+
+procedure TLuaContext.IncStackPushCount;
+begin
+  Inc(FPushCount);
+end;
+
+procedure TLuaContext.Cleanup;
+begin
+  if FPushFlag then
+  begin
+    ClearStack;
+  end;
+end;
+
+function TLuaContext.PushTableForSet(aName: array of string; aIndex: Integer; var aStackIndex: Integer; var aFieldNameIndex: Integer): Boolean;
+var
+  LMarshall: TMarshaller;
+  LI: Integer;
+begin
+  Result := False;
+
+  aStackIndex := Length(aName);
+  if aStackIndex < 1 then  Exit;
+
+  if Length(aName) = 1 then
+    aFieldNameIndex := 0
+  else
+    aFieldNameIndex := Length(aName) - 1;
+
+  if lua_type(FLua.State, aIndex) <> LUA_TTABLE then Exit;
+
+  for LI := 0 to aStackIndex - 1 do
+  begin
+    lua_getfield(FLua.State, LI + aIndex, LMarshall.AsAnsi(aName[LI]).ToPointer);
+
+    if lua_type(FLua.State, -1) <> LUA_TTABLE then
+    begin
+      lua_pop(FLua.State, 1);
+
+      lua_newtable(FLua.State);
+
+      lua_setfield(FLua.State, LI + aIndex, LMarshall.AsAnsi(aName[LI]).ToPointer);
+
+      lua_getfield(FLua.State, LI + aIndex, LMarshall.AsAnsi(aName[LI]).ToPointer);
+    end;
+  end;
+
+  Result := True;
+end;
+
+function TLuaContext.PushTableForGet(aName: array of string; aIndex: Integer; var aStackIndex: Integer; var aFieldNameIndex: Integer): Boolean;
+var
+  LMarshall: TMarshaller;
+  LI: Integer;
+begin
+  Result := False;
+
+  aStackIndex := Length(aName);
+  if aStackIndex < 1 then  Exit;
+
+  if aStackIndex = 1 then
+    aFieldNameIndex := 0
+  else
+    aFieldNameIndex := aStackIndex - 1;
+
+  if lua_type(FLua.State, aIndex) <> LUA_TTABLE then  Exit;
+
+  for LI := 0 to aStackIndex - 2 do
+  begin
+    lua_getfield(FLua.State, LI + aIndex, LMarshall.AsAnsi(aName[LI]).ToPointer);
+
+    if lua_type(FLua.State, -1) <> LUA_TTABLE then Exit;
+  end;
+
+  Result := True;
+end;
+
+constructor TLuaContext.Create(aLua: TLua);
+begin
+  FLua := aLua;
+  FPushCount := 0;
+  FPushFlag := False;
+end;
+
+destructor TLuaContext.Destroy;
+begin
+  FLua := nil;
+  FPushCount := 0;
+  FPushFlag := False;
+  inherited;
+end;
+
+function TLuaContext.ArgCount: Integer;
+begin
+  Result := lua_gettop(FLua.State);
+end;
+
+function TLuaContext.PushCount: Integer;
+begin
+  Result := FPushCount;
+end;
+
+procedure TLuaContext.ClearStack;
+begin
+  lua_pop(FLua.State, lua_gettop(FLua.State));
+  FPushCount := 0;
+  FPushFlag := False;
+end;
+
+procedure TLuaContext.PopStack(aCount: Integer);
+begin
+  lua_pop(FLua.State, aCount);
+end;
+
+function TLuaContext.GetStackType(aIndex: Integer): TLuaType;
+begin
+  Result := TLuaType(lua_type(FLua.State, aIndex));
+end;
+
+var TLuaContext_GetValue_LStr: string = '';
+function TLuaContext.GetValue(aType: TLuaValueType; aIndex: Integer): TLuaValue;
+begin
+  case aType of
+    vtInteger:
+      begin
+        Result := lua_tointeger(FLua.State, aIndex);
+      end;
+    vtDouble:
+      begin
+        Result := lua_tonumber(FLua.State, aIndex);
+      end;
+    vtString:
+      begin
+        TLuaContext_GetValue_LStr := lua_tostring(FLua.State, aIndex);
+        Result := PChar(TLuaContext_GetValue_LStr);
+      end;
+    vtPointer:
+      begin
+        Result := lua_touserdata(FLua.State, aIndex);
+      end;
+    vtBoolean:
+      begin
+        Result := Boolean(lua_toboolean(FLua.State, aIndex));
+      end;
+  else
+    begin
+
+    end;
+  end;
+end;
+
+procedure TLuaContext.PushValue(aValue: TLuaValue);
+var
+  LMarshall: TMarshaller;
+begin
+  Check;
+
+  case aValue.AsType of
+    vtInteger:
+      begin
+        lua_pushinteger(FLua.State, aValue);
+      end;
+    vtDouble:
+      begin
+        lua_pushnumber(FLua.State, aValue);
+      end;
+    vtString:
+      begin
+        lua_pushstring(FLua.State, LMarshall.AsAnsi(aValue.AsString).ToPointer);
+      end;
+    vtTable:
+      begin
+        lua_newtable(FLua.State);
+      end;
+    vtPointer:
+      begin
+        lua_pushlightuserdata(FLua.State, aValue);
+      end;
+    vtBoolean:
+      begin
+        lua_pushboolean(FLua.State, LongBool(aValue.AsBoolean.ToInteger));
+      end;
+  end;
+
+  IncStackPushCount;
+end;
+
+procedure TLuaContext.SetTableFieldValue(const aName: string; aValue: TLuaValue; aIndex: Integer);
+var
+  LMarshall: TMarshaller;
+  LStackIndex: Integer;
+  LFieldNameIndex: Integer;
+  LItems: TStringDynArray;
+  LOk: Boolean;
+begin
+  LItems := ParseTableNames(aName);
+  if not PushTableForSet(LItems, aIndex, LStackIndex, LFieldNameIndex) then Exit;
+  LOk := True;
+
+  case aValue.AsType of
+    vtInteger:
+      begin
+        lua_pushinteger(FLua.State, aValue);
+      end;
+    vtDouble:
+      begin
+        lua_pushnumber(FLua.State, aValue);
+      end;
+    vtString:
+      begin
+        lua_pushstring(FLua.State, LMarshall.AsAnsi(aValue.AsString).ToPointer);
+      end;
+    vtPointer:
+      begin
+        lua_pushlightuserdata(FLua.State, aValue);
+      end;
+    vtBoolean:
+      begin
+        lua_pushboolean(FLua.State, LongBool(aValue.AsBoolean.ToInteger));
+      end;
+  else
+    begin
+      LOk := False;
+    end;
+  end;
+
+  if LOk then
+  begin
+    lua_setfield(FLua.State, LStackIndex + (aIndex - 1),
+      LMarshall.AsAnsi(LItems[LFieldNameIndex]).ToPointer);
+  end;
+
+  PopStack(LStackIndex);
+end;
+
+var TLuaContext_GetTableFieldValue_LStr: string = '';
+function TLuaContext.GetTableFieldValue(const aName: string; aType: TLuaValueType; aIndex: Integer): TLuaValue;
+var
+  LMarshall: TMarshaller;
+  LStackIndex: Integer;
+  LFieldNameIndex: Integer;
+  LItems: TStringDynArray;
+begin
+  LItems := ParseTableNames(aName);
+  if not PushTableForGet(LItems, aIndex, LStackIndex, LFieldNameIndex) then
+    Exit;
+  lua_getfield(FLua.State, LStackIndex + (aIndex - 1),
+    LMarshall.AsAnsi(LItems[LFieldNameIndex]).ToPointer);
+
+  case aType of
+    vtInteger:
+      begin
+        Result := lua_tointeger(FLua.State, -1);
+      end;
+    vtDouble:
+      begin
+        Result := lua_tonumber(FLua.State, -1);
+      end;
+    vtString:
+      begin
+        TLuaContext_GetTableFieldValue_LStr := lua_tostring(FLua.State, -1);
+        Result := PChar(TLuaContext_GetTableFieldValue_LStr);
+      end;
+    vtPointer:
+      begin
+        Result := lua_touserdata(FLua.State, -1);
+      end;
+    vtBoolean:
+      begin
+        Result := Boolean(lua_toboolean(FLua.State, -1));
+      end;
+  end;
+
+  PopStack(LStackIndex);
+end;
+
+procedure TLuaContext.SetTableIndexValue(const aName: string; aValue: TLuaValue; aIndex: Integer; aKey: Integer);
+var
+  LMarshall: TMarshaller;
+  LStackIndex: Integer;
+  LFieldNameIndex: Integer;
+  LItems: TStringDynArray;
+  LOk: Boolean;
+
+  procedure LPushValue;
+  begin
+    LOk := True;
+
+    case aValue.AsType of
+      vtInteger:
+        begin
+          lua_pushinteger(FLua.State, aValue);
+        end;
+      vtDouble:
+        begin
+          lua_pushnumber(FLua.State, aValue);
+        end;
+      vtString:
+        begin
+          lua_pushstring(FLua.State, LMarshall.AsAnsi(aValue.AsString).ToPointer);
+        end;
+      vtPointer:
+        begin
+          lua_pushlightuserdata(FLua.State, aValue);
+        end;
+      vtBoolean:
+        begin
+          lua_pushboolean(FLua.State, LongBool(aValue.AsBoolean.ToInteger));
+        end;
+    else
+      begin
+        LOk := False;
+      end;
+    end;
+  end;
+
+begin
+  LItems := ParseTableNames(aName);
+  if Length(LItems) > 0 then
+    begin
+      if not PushTableForGet(LItems, aIndex, LStackIndex, LFieldNameIndex) then  Exit;
+      LPushValue;
+      if LOk then
+        lua_rawseti (FLua.State, LStackIndex + (aIndex - 1), aKey);
+    end
+  else
+    begin
+      LPushValue;
+      if LOk then
+      begin
+        lua_rawseti (FLua.State, aIndex, aKey);
+      end;
+      LStackIndex := 0;
+    end;
+
+    PopStack(LStackIndex);
+end;
+
+var TLuaContext_GetTableIndexValue_LStr: string = '';
+function TLuaContext.GetTableIndexValue(const aName: string; aType: TLuaValueType; aIndex: Integer; aKey: Integer): TLuaValue;
+var
+  LStackIndex: Integer;
+  LFieldNameIndex: Integer;
+  LItems: TStringDynArray;
+begin
+  LItems := ParseTableNames(aName);
+  if Length(LItems) > 0 then
+    begin
+      if not PushTableForGet(LItems, aIndex, LStackIndex, LFieldNameIndex) then Exit;
+      lua_rawgeti (FLua.State, LStackIndex + (aIndex - 1), aKey);
+    end
+  else
+    begin
+      lua_rawgeti (FLua.State, aIndex, aKey);
+      LStackIndex := 0;
+    end;
+
+  case aType of
+    vtInteger:
+      begin
+        Result := lua_tointeger(FLua.State, -1);
+      end;
+    vtDouble:
+      begin
+        Result := lua_tonumber(FLua.State, -1);
+      end;
+    vtString:
+      begin
+        TLuaContext_GetTableIndexValue_LStr := lua_tostring(FLua.State, -1);
+        Result := PChar(TLuaContext_GetTableIndexValue_LStr);
+      end;
+    vtPointer:
+      begin
+        Result := lua_touserdata(FLua.State, -1);
+      end;
+    vtBoolean:
+      begin
+        Result := Boolean(lua_toboolean(FLua.State, -1));
+      end;
+  end;
+
+  PopStack(LStackIndex);
+end;
+
+
+procedure TLua.Open;
+begin
+  if FState <> nil then Exit;
+  FState := luaL_newstate;
+  SetGCStepSize(200);
+  luaL_openlibs(FState);
+  LoadBuffer(@cLOADER_LUA, Length(cLOADER_LUA));
+  FContext := TLuaContext.Create(Self);
+  SetVariable('DelphiGamekit.LuaVersion', GetVariable('jit.version', vtString));
+  SetVariable('DelphiGamekit.Version', PChar(Game.SDKVersion));
+end;
+
+procedure TLua.Close;
+begin
+  if FState = nil then Exit;
+  FreeAndNil(FContext);
+  lua_close(FState);
+  FState := nil;
+end;
+
+procedure TLua.CheckLuaError(const aError: Integer);
+var
+  LErr: string;
+begin
+  if FState = nil then Exit;
+
+  case aError of
+    0:
+      begin
+
+      end;
+    LUA_ERRRUN:
+      begin
+        LErr := lua_tostring(FState, -1);
+        lua_pop(FState, 1);
+        raise ELuaRuntimeException.CreateFmt('Runtime error [%s]', [LErr]);
+      end;
+    LUA_ERRMEM:
+      begin
+        LErr := lua_tostring(FState, -1);
+        lua_pop(FState, 1);
+        raise ELuaException.CreateFmt('Memory allocation error [%s]', [LErr]);
+      end;
+    LUA_ERRERR:
+      begin
+        LErr := lua_tostring(FState, -1);
+        lua_pop(FState, 1);
+        raise ELuaException.CreateFmt
+          ('Error while running the error handler function [%s]', [LErr]);
+      end;
+    LUA_ERRSYNTAX:
+      begin
+        LErr := lua_tostring(FState, -1);
+        lua_pop(FState, 1);
+        raise ELuaSyntaxError.CreateFmt('Syntax Error [%s]', [LErr]);
+      end
+  else
+    begin
+      LErr := lua_tostring(FState, -1);
+      lua_pop(FState, 1);
+      raise ELuaException.CreateFmt('Unknown Error [%s]', [LErr]);
+    end;
+  end;
+end;
+
+function TLua.PushGlobalTableForSet(aName: array of string; var aIndex: Integer): Boolean;
+var
+  LMarshall: TMarshaller;
+  LI: Integer;
+begin
+  Result := False;
+
+  if FState = nil then Exit;
+
+  if Length(aName) < 2 then Exit;
+
+  aIndex := Length(aName) - 1;
+
+  lua_getglobal(FState, LMarshall.AsAnsi(aName[0]).ToPointer);
+
+  if lua_type(FState, lua_gettop(FState)) <> LUA_TTABLE then
+  begin
+    lua_pop(FState, 1);
+
+    lua_newtable(FState);
+
+    lua_setglobal(FState, LMarshall.AsAnsi(aName[0]).ToPointer);
+
+    lua_getglobal(FState, LMarshall.AsAnsi(aName[0]).ToPointer);
+  end;
+
+  for LI := 1 to aIndex - 1 do
+  begin
+    lua_getfield(FState, LI, LMarshall.AsAnsi(aName[LI]).ToPointer);
+
+    if lua_type(FState, -1) <> LUA_TTABLE then
+    begin
+      lua_pop(FState, 1);
+
+      lua_newtable(FState);
+
+      lua_setfield(FState, LI, LMarshall.AsAnsi(aName[LI]).ToPointer);
+
+      lua_getfield(FState, LI, LMarshall.AsAnsi(aName[LI]).ToPointer);
+    end;
+  end;
+
+  Result := True;
+end;
+
+function TLua.PushGlobalTableForGet(aName: array of string; var aIndex: Integer): Boolean;
+var
+  LMarshall: TMarshaller;
+  LI: Integer;
+begin
+  Result := False;
+
+  if FState = nil then Exit;
+
+  if Length(aName) < 2 then Exit;
+
+  aIndex := Length(aName) - 1;
+
+  lua_getglobal(FState, LMarshall.AsAnsi(aName[0]).ToPointer);
+
+  if lua_type(FState, lua_gettop(FState)) = LUA_TTABLE then
+  begin
+    for LI := 1 to aIndex - 1 do
+    begin
+      lua_getfield(FState, LI, LMarshall.AsAnsi(aName[LI]).ToPointer);
+
+      if lua_type(FState, -1) <> LUA_TTABLE then
+      begin
+        Exit;
+      end;
+    end;
+  end;
+
+  Result := True;
+end;
+
+procedure TLua.PushTValue(aValue: TValue);
+var
+  LUtf8s: RawByteString;
+begin
+  if FState = nil then Exit;
+
+  case aValue.Kind of
+    tkUnknown, tkChar, tkSet, tkMethod, tkVariant, tkArray, tkProcedure, tkRecord, tkInterface, tkDynArray, tkClassRef:
+      begin
+        lua_pushnil(FState);
+      end;
+    tkInteger:
+      lua_pushinteger(FState, aValue.AsInteger);
+    tkEnumeration:
+      begin
+        if aValue.IsType<Boolean> then
+        begin
+          if aValue.AsBoolean then
+            lua_pushboolean(FState, true)
+          else
+            lua_pushboolean(FState, false);
+        end
+        else
+          lua_pushinteger(FState, aValue.AsInteger);
+      end;
+    tkFloat:
+      lua_pushnumber(FState, aValue.AsExtended);
+    tkString, tkWChar, tkLString, tkWString, tkUString:
+      begin
+        LUtf8s := UTF8Encode(aValue.AsString);
+        lua_pushstring(FState, PAnsiChar(LUtf8s));
+      end;
+    tkInt64:
+      lua_pushnumber(FState, aValue.AsInt64);
+  end;
+end;
+
+function TLua.CallFunction(const aParams: array of TValue): TValue;
+var
+  LP: TValue;
+  LR: Integer;
+begin
+  if FState = nil then Exit;
+
+  for LP in aParams do
+    PushTValue(LP);
+  LR := lua_pcall(FState, Length(aParams), 1, 0);
+  CheckLuaError(LR);
+  lua_pop(FState, 1);
+  case lua_type(FState, -1) of
+    LUA_TNIL:
+      begin
+        Result := nil;
+      end;
+
+    LUA_TBOOLEAN:
+      begin
+        Result := Boolean(lua_toboolean(FState, -1));
+      end;
+
+    LUA_TNUMBER:
+      begin
+        Result := lua_tonumber(FState, -1);
+      end;
+
+    LUA_TSTRING:
+      begin
+        Result := lua_tostring(FState, -1);
+      end;
+  else
+    Result := nil;
+  end;
+end;
+
+procedure TLua.Bundle(aInFilename: string; aOutFilename: string);
+begin
+  if FState = nil then Exit;
+
+  if aInFilename.IsEmpty then  Exit;
+  if aOutFilename.IsEmpty then Exit;
+  aInFilename := aInFilename.Replace('\', '/');
+  aOutFilename := aOutFilename.Replace('\', '/');
+  LoadBuffer(@cLUABUNDLE_LUA, Length(cLUABUNDLE_LUA), False);
+  DoCall([PChar(aInFilename), PChar(aOutFilename)]);
+end;
+
+constructor TLua.Create;
+begin
+  inherited;
+
+  FState := nil;
+  Open;
+
+end;
+
+destructor TLua.Destroy;
+begin
+  Close;
+
+  inherited;
+
+end;
+
+procedure TLua.Reset;
+begin
+  if FState = nil then Exit;
+
+  Game.OnPreLuaReset;
+  Close;
+  Open;
+  Game.OnPostLuaReset;
+end;
+
+function TLua.LoadFile(const aFilename: string; aAutoRun: Boolean): Boolean;
+var
+  LMarshall: TMarshaller;
+  LErr: string;
+  LRes: Integer;
+begin
+  Result := False;
+  if FState = nil then Exit;
+
+  if aFilename.IsEmpty then Exit;
+
+  if not TFile.Exists(aFilename) then Exit;
+  if aAutoRun then
+    LRes := luaL_dofile(FState, LMarshall.AsUtf8(aFilename).ToPointer)
+  else
+    LRes := luaL_loadfile(FState, LMarshall.AsUtf8(aFilename).ToPointer);
+  if LRes <> 0 then
+  begin
+    LErr := lua_tostring(FState, -1);
+    lua_pop(FState, 1);
+    raise ELuaException.Create(LErr);
+  end;
+
+  Result := True;
+end;
+
+procedure TLua.LoadString(const aData: string; aAutoRun: Boolean);
+var
+  LMarshall: TMarshaller;
+  LErr: string;
+  LRes: Integer;
+  LData: string;
+begin
+  if FState = nil then Exit;
+
+  LData := aData;
+  if LData.IsEmpty then Exit;
+
+  if aAutoRun then
+    LRes := luaL_dostring(FState, LMarshall.AsAnsi(LData).ToPointer)
+  else
+    LRes := luaL_loadstring(FState, LMarshall.AsAnsi(LData).ToPointer);
+
+  if LRes <> 0 then
+  begin
+    LErr := lua_tostring(FState, -1);
+    lua_pop(FState, 1);
+    raise ELuaException.Create(LErr);
+  end;
+end;
+
+procedure TLua.LoadStream(aStream: TStream; aSize: NativeUInt; aAutoRun: Boolean);
+var
+  LMemStream: TMemoryStream;
+  LSize: NativeUInt;
+begin
+  if FState = nil then Exit;
+
+  LMemStream := TMemoryStream.Create;
+  try
+    if aSize = 0 then
+      LSize := aStream.Size
+    else
+      LSize := aSize;
+    LMemStream.Position := 0;
+    LMemStream.CopyFrom(aStream, LSize);
+    LoadBuffer(LMemStream.Memory, LMemStream.size, aAutoRun);
+  finally
+    FreeAndNil(LMemStream);
+  end;
+end;
+
+procedure TLua.LoadBuffer(aData: Pointer; aSize: NativeUInt; aAutoRun: Boolean);
+var
+  LMemStream: TMemoryStream;
+  LRes: Integer;
+  LErr: string;
+  LSize: NativeUInt;
+begin
+  if FState = nil then Exit;
+
+  LMemStream := TMemoryStream.Create;
+  try
+    LMemStream.Write(aData^, aSize);
+    LMemStream.Position := 0;
+    LSize := LMemStream.Size;
+    if aAutoRun then
+      LRes := luaL_dobuffer(FState, LMemStream.Memory, LSize, 'LoadBuffer')
+    else
+      LRes := luaL_loadbuffer(FState, LMemStream.Memory, LSize, 'LoadBuffer');
+  finally
+    FreeAndNil(LMemStream);
+  end;
+
+  if LRes <> 0 then
+  begin
+    LErr := lua_tostring(FState, -1);
+    lua_pop(FState, 1);
+    raise ELuaException.Create(LErr);
+  end;
+end;
+
+procedure TLua.SaveByteCode(aStream: TStream);
+var
+  LRet: Integer;
+begin
+  if FState = nil then Exit;
+
+  if lua_type(FState, lua_gettop(FState)) <> LUA_TFUNCTION then Exit;
+
+  try
+    LRet := lua_dump(FState, LuaWrapperWriter, aStream);
+    if LRet <> 0 then
+      raise ELuaException.CreateFmt('lua_dump returned code %d', [LRet]);
+  finally
+    lua_pop(FState, 1);
+  end;
+end;
+
+procedure TLua.LoadByteCode(aStream: TStream; aName: string; aAutoRun: Boolean);
+var
+  LRes: NativeUInt;
+  LErr: string;
+  LMemStream: TMemoryStream;
+  LMarshall: TMarshaller;
+begin
+  if FState = nil then Exit;
+  if aStream = nil then Exit;
+  if aStream.size <= 0 then Exit;
+
+  LMemStream := TMemoryStream.Create;
+
+  try
+    LMemStream.CopyFrom(aStream, aStream.size);
+
+    if aAutoRun then
+    begin
+      LRes := luaL_dobuffer(FState, LMemStream.Memory, LMemStream.size,
+        LMarshall.AsAnsi(aName).ToPointer)
+    end
+    else
+      LRes := luaL_loadbuffer(FState, LMemStream.Memory, LMemStream.size,
+        LMarshall.AsAnsi(aName).ToPointer);
+  finally
+    LMemStream.Free;
+  end;
+
+  if LRes <> 0 then
+  begin
+    LErr := lua_tostring(FState, -1);
+    lua_pop(FState, 1);
+    raise ELuaException.Create(LErr);
+  end;
+
+end;
+
+procedure TLua.PushLuaValue(aValue: TLuaValue);
+begin
+  if FState = nil then Exit;
+
+  case aValue.AsType of
+    vtInteger:
+      begin
+        lua_pushinteger(FState, aValue.AsInteger);
+      end;
+    vtDouble:
+      begin
+        lua_pushnumber(FState, aVAlue.AsNumber);
+      end;
+    vtString:
+      begin
+        lua_pushstring(FState, PAnsiChar(UTF8Encode(aValue.AsString)));
+      end;
+    vtPointer:
+      begin
+        lua_pushlightuserdata(FState, aValue.AsPointer);
+      end;
+    vtBoolean:
+      begin
+        lua_pushboolean(FState, LongBool(aValue.AsBoolean.ToInteger));
+      end;
+  else
+    begin
+      lua_pushnil(FState);
+    end;
+  end;
+end;
+
+var TLua_GetLuaValue_LStr: string = '';
+function TLua.GetLuaValue(aIndex: Integer): TLuaValue;
+begin
+  Result := nil;
+
+  if FState = nil then Exit;
+
+  case lua_type(FState, aIndex) of
+    LUA_TNIL:
+      begin
+        Result := nil;
+      end;
+
+    LUA_TBOOLEAN:
+      begin
+        Result := Boolean(lua_toboolean(FState, aIndex));
+      end;
+
+    LUA_TNUMBER:
+      begin
+        Result := lua_tonumber(FState, aIndex);
+      end;
+
+    LUA_TSTRING:
+      begin
+        TLua_GetLuaValue_LStr := lua_tostring(FState, aIndex);
+        Result := PChar(TLua_GetLuaValue_LStr);
+      end;
+  else
+    begin
+      Result := nil;
+    end;
+  end;
+end;
+
+function TLua.DoCall(const aParams: array of TLuaValue): TLuaValue;
+var
+  LValue: TLuaValue;
+  LRes: Integer;
+begin
+  if FState = nil then Exit;
+
+  for LValue in aParams do
+  begin
+    PushLuaValue(LValue);
+  end;
+
+  LRes := lua_pcall(FState, Length(aParams), 1, 0);
+  CheckLuaError(LRes);
+  Result := GetLuaValue(-1);
+end;
+
+function TLua.DoCall(aParamCount: Integer): TLuaValue;
+var
+  LRes: Integer;
+begin
+  Result := nil;
+  if FState = nil then Exit;
+
+  LRes := lua_pcall(FState, aParamCount, 1, 0);
+  CheckLuaError(LRes);
+  Result := GetLuaValue(-1);
+  CleanStack;
+end;
+
+procedure TLua.CleanStack;
+begin
+  if FState = nil then Exit;
+
+  lua_pop(FState, lua_gettop(FState));
+end;
+
+function TLua.Call(const aName: string; const aParams: array of TLuaValue): TLuaValue;
+var
+  LMarshall: TMarshaller;
+  LIndex: Integer;
+  LItems: TStringDynArray;
+begin
+  Result := nil;
+  if FState = nil then Exit;
+
+  if aName.IsEmpty then Exit;
+
+  CleanStack;
+
+  LItems := ParseTableNames(aName);
+
+  if Length(LItems) > 1 then
+    begin
+      if not PushGlobalTableForGet(LItems, LIndex) then
+      begin
+        CleanStack;
+        Exit;
+      end;
+
+      lua_getfield(FState,  LIndex, LMarshall.AsAnsi(LItems[LIndex]).ToPointer);
+    end
+  else
+    begin
+      lua_getglobal(FState, LMarshall.AsAnsi(LItems[0]).ToPointer);
+    end;
+
+  if not lua_isnil(FState, lua_gettop(FState)) then
+  begin
+    if lua_isfunction(FState, -1) then
+    begin
+      Result := DoCall(aParams);
+    end;
+  end;
+end;
+
+function TLua.PrepCall(const aName: string): Boolean;
+var
+  LMarshall: TMarshaller;
+  LIndex: Integer;
+  LItems: TStringDynArray;
+begin
+  Result := False;
+  if FState = nil then Exit;
+
+  if aName.IsEmpty then Exit;
+
+  CleanStack;
+
+  LItems := ParseTableNames(aName);
+
+  if Length(LItems) > 1 then
+    begin
+      if not PushGlobalTableForGet(LItems, LIndex) then
+      begin
+        CleanStack;
+        Exit;
+      end;
+
+      lua_getfield(FState,  LIndex, LMarshall.AsAnsi(LItems[LIndex]).ToPointer);
+    end
+  else
+    begin
+      lua_getglobal(FState, LMarshall.AsAnsi(LItems[0]).ToPointer);
+    end;
+
+  Result := True;
+end;
+
+function TLua.Call(aParamCount: Integer): TLuaValue;
+begin
+  Result := nil;
+  if FState <> nil then Exit;
+
+  if not lua_isnil(FState, lua_gettop(FState)) then
+  begin
+    if lua_isfunction(FState, -1) then
+    begin
+      Result := DoCall(aParamCount);
+    end;
+  end;
+end;
+
+function TLua.RoutineExist(const aName: string): Boolean;
+var
+  LMarshall: TMarshaller;
+  LIndex: Integer;
+  LItems: TStringDynArray;
+  LCount: Integer;
+  LName: string;
+begin
+  Result := False;
+  if FState = nil then Exit;
+
+  LName := aName;
+  if LName.IsEmpty then  Exit;
+
+  LItems := ParseTableNames(LName);
+
+  LCount := Length(LItems);
+
+  if LCount > 1 then
+    begin
+      if not PushGlobalTableForGet(LItems, LIndex) then
+      begin
+        CleanStack;
+        Exit;
+      end;
+      lua_getfield(FState, LIndex, LMarshall.AsAnsi(LItems[LIndex]).ToPointer);
+    end
+  else
+    begin
+      lua_getglobal(FState, LMarshall.AsAnsi(LName).ToPointer);
+    end;
+
+  if not lua_isnil(FState, lua_gettop(FState)) then
+  begin
+    if lua_isfunction(FState, -1) then
+    begin
+      Result := True;
+    end;
+  end;
+
+  CleanStack;
+end;
+
+procedure TLua.Run;
+var
+  LErr: string;
+  LRes: Integer;
+begin
+  if FState = nil then Exit;
+
+  LRes := LUA_OK;
+
+  if lua_type(FState, lua_gettop(FState)) = LUA_TFUNCTION then
+  begin
+    LRes := lua_pcall(FState, 0, LUA_MULTRET, 0);
+  end;
+
+  if LRes <> 0 then
+  begin
+    LErr := lua_tostring(FState, -1);
+    lua_pop(FState, 1);
+    raise ELuaException.Create(LErr);
+  end;
+end;
+
+function TLua.VariableExist(const aName: string): Boolean;
+var
+  LMarshall: TMarshaller;
+  LIndex: Integer;
+  LItems: TStringDynArray;
+  LCount: Integer;
+  LName: string;
+begin
+  Result := False;
+  if FState = nil then Exit;
+
+  LName := aName;
+  if LName.IsEmpty then Exit;
+
+  LItems := ParseTableNames(LName);
+  LCount := Length(LItems);
+
+  if LCount > 1 then
+    begin
+      if not PushGlobalTableForGet(LItems, LIndex) then
+      begin
+        CleanStack;
+        Exit;
+      end;
+      lua_getfield(FState, LIndex, LMarshall.AsAnsi(LItems[LIndex]).ToPointer);
+    end
+  else if LCount = 1 then
+    begin
+      lua_getglobal(FState, LMarshall.AsAnsi(LName).ToPointer);
+    end
+  else
+    begin
+      Exit;
+    end;
+
+  if not lua_isnil(FState, lua_gettop(FState)) then
+  begin
+    Result := lua_isvariable(FState, -1);
+  end;
+
+  CleanStack;
+end;
+
+var TLua_GetVariable_LStr: string = '';
+function TLua.GetVariable(const aName: string; aType: TLuaValueType): TLuaValue;
+var
+  LMarshall: TMarshaller;
+  LIndex: Integer;
+  LItems: TStringDynArray;
+  LCount: Integer;
+  LName: string;
+begin
+  Result := nil;
+  if FState = nil then Exit;
+
+  LName := aName;
+  if LName.IsEmpty then Exit;
+
+  LItems := ParseTableNames(LName);
+  LCount := Length(LItems);
+
+  if LCount > 1 then
+    begin
+      if not PushGlobalTableForGet(LItems, LIndex) then
+      begin
+        CleanStack;
+        Exit;
+      end;
+      lua_getfield(FState, LIndex, LMarshall.AsAnsi(LItems[LIndex]).ToPointer);
+    end
+  else if LCount = 1 then
+    begin
+      lua_getglobal(FState, LMarshall.AsAnsi(LName).ToPointer);
+    end
+  else
+    begin
+      Exit;
+    end;
+
+  case aType of
+    vtInteger:
+      begin
+        Result := lua_tointeger(FState, -1);
+      end;
+    vtDouble:
+      begin
+        Result := lua_tonumber(FState, -1);
+      end;
+    vtString:
+      begin
+        TLua_GetVariable_LStr := lua_tostring(FState, -1);
+        Result := PChar(TLua_GetVariable_LStr);
+      end;
+    vtPointer:
+      begin
+        Result := lua_touserdata(FState, -1);
+      end;
+    vtBoolean:
+      begin
+        Result := Boolean(lua_toboolean(FState, -1));
+      end;
+  end;
+
+  CleanStack;
+end;
+
+procedure TLua.SetVariable(const aName: string; aValue: TLuaValue);
+var
+  LMarshall: TMarshaller;
+  LIndex: Integer;
+  LItems: TStringDynArray;
+  LOk: Boolean;
+  LCount: Integer;
+  LName: string;
+begin
+  if FState = nil then Exit;
+
+  LName := aName;
+  if LName.IsEmpty then Exit;
+
+  LItems := ParseTableNames(aName);
+  LCount := Length(LItems);
+
+  if LCount > 1 then
+    begin
+      if not PushGlobalTableForSet(LItems, LIndex) then
+      begin
+        CleanStack;
+        Exit;
+      end;
+    end
+  else if LCount < 1 then
+    begin
+      Exit;
+    end;
+
+  LOk := True;
+
+  case aValue.AsType of
+    vtInteger:
+      begin
+        lua_pushinteger(FState, aValue);
+      end;
+    vtDouble:
+      begin
+        lua_pushnumber(FState, aValue);
+      end;
+    vtString:
+      begin
+        lua_pushstring(FState, LMarshall.AsAnsi(aValue).ToPointer);
+      end;
+    vtPointer:
+      begin
+        lua_pushlightuserdata(FState, aValue);
+      end;
+    vtBoolean:
+      begin
+        lua_pushboolean(FState, LongBool(aValue.AsBoolean.ToInteger));
+      end;
+  else
+    begin
+      LOk := False;
+    end;
+  end;
+
+  if LOk then
+  begin
+    if LCount > 1 then
+      begin
+        lua_setfield(FState, LIndex, LMarshall.AsAnsi(LItems[LIndex]).ToPointer)
+      end
+    else
+      begin
+        lua_setglobal(FState, LMarshall.AsAnsi(LName).ToPointer);
+      end;
+  end;
+
+  CleanStack;
+end;
+
+procedure TLua.RegisterRoutine(const aName: string; aRoutine: TLuaFunction);
+var
+  LMethod: TMethod;
+  LMarshall: TMarshaller;
+  LIndex: Integer;
+  LNames: array of string;
+  LI: Integer;
+  LItems: TStringDynArray;
+  LCount: Integer;
+begin
+  if FState = nil then Exit;
+  if aName.IsEmpty then Exit;
+
+  LItems := ParseTableNames(aName);
+
+  LCount := Length(LItems);
+
+  SetLength(LNames, Length(LItems));
+
+  for LI := 0 to High(LItems) do
+  begin
+    LNames[LI] := LItems[LI];
+  end;
+
+  if LCount > 1 then
+    begin
+      if not PushGlobalTableForSet(LNames, LIndex) then
+      begin
+        CleanStack;
+        Exit;
+      end;
+
+      LMethod.Code := TMethod(aRoutine).Code;
+      LMethod.Data := TMethod(aRoutine).Data;
+      lua_pushlightuserdata(FState, Self);
+      lua_pushlightuserdata(FState, LMethod.Code);
+      lua_pushlightuserdata(FState, LMethod.Data);
+      lua_pushcclosure(FState, @LuaWrapperClosure, 3);
+
+      lua_setfield(FState, -2, LMarshall.AsAnsi(LNames[LIndex]).ToPointer);
+
+      CleanStack;
+    end
+  else if (LCount = 1) then
+    begin
+      LMethod.Code := TMethod(aRoutine).Code;
+      LMethod.Data := TMethod(aRoutine).Data;
+      lua_pushlightuserdata(FState, Self);
+      lua_pushlightuserdata(FState, LMethod.Code);
+      lua_pushlightuserdata(FState, LMethod.Data);
+      lua_pushcclosure(FState, @LuaWrapperClosure, 3);
+
+      lua_setglobal(FState, LMarshall.AsAnsi(LNames[0]).ToPointer);
+    end;
+end;
+
+procedure TLua.RegisterRoutine(const aName: string; aData: Pointer; aCode: Pointer);
+var
+  LMarshall: TMarshaller;
+  LIndex: Integer;
+  LNames: array of string;
+  LI: Integer;
+  LItems: TStringDynArray;
+  LCount: Integer;
+begin
+  if FState = nil then Exit;
+  if aName.IsEmpty then Exit;
+
+  LItems := ParseTableNames(aName);
+
+  LCount := Length(LItems);
+
+  SetLength(LNames, Length(LItems));
+
+  for LI := 0 to High(LItems) do
+  begin
+    LNames[LI] := LItems[LI];
+  end;
+
+  if LCount > 1 then
+    begin
+      if not PushGlobalTableForSet(LNames, LIndex) then
+      begin
+        CleanStack;
+        Exit;
+      end;
+
+      lua_pushlightuserdata(FState, Self);
+      lua_pushlightuserdata(FState, aCode);
+      lua_pushlightuserdata(FState, aData);
+      lua_pushcclosure(FState, @LuaWrapperClosure, 3);
+
+      lua_setfield(FState, -2, LMarshall.AsAnsi(LNames[LIndex]).ToPointer);
+
+      CleanStack;
+    end
+  else if (LCount = 1) then
+    begin
+      lua_pushlightuserdata(FState, Self);
+      lua_pushlightuserdata(FState, aCode);
+      lua_pushlightuserdata(FState, aData);
+      lua_pushcclosure(FState, @LuaWrapperClosure, 3);
+
+      lua_setglobal(FState, LMarshall.AsAnsi(LNames[0]).ToPointer);
+    end;
+end;
+
+procedure TLua.RegisterRoutines(aClass: TClass);
+var
+  LRttiContext: TRttiContext;
+  LRttiType: TRttiType;
+  LRttiMethod: TRttiMethod;
+  LMethodAutoSetup: TRttiMethod;
+
+  LRttiParameters: TArray<System.Rtti.TRttiParameter>;
+  LMethod: TMethod;
+  LMarshall: TMarshaller;
+begin
+  if FState = nil then Exit;
+
+  LRttiType := LRttiContext.GetType(aClass);
+  LMethodAutoSetup := nil;
+
+  for LRttiMethod in LRttiType.GetMethods do
+  begin
+    if (LRttiMethod.MethodKind <> mkClassProcedure) then continue;
+    if (LRttiMethod.Visibility <> mvPublic) then continue;
+
+    LRttiParameters := LRttiMethod.GetParameters;
+
+    if SameText(LRttiMethod.Name, cLuaAutoSetup) then
+    begin
+      if (Length(LRttiParameters) = 1) and (Assigned(LRttiParameters[0].ParamType)) and (LRttiParameters[0].ParamType.TypeKind = tkInterface) and (TRttiInterfaceType(LRttiParameters[0].ParamType).GUID = ILua) then
+      begin
+        LMethodAutoSetup := LRttiMethod;
+      end;
+      continue;
+    end;
+
+    if (Length(LRttiParameters) = 1) and (Assigned(LRttiParameters[0].ParamType)) and (LRttiParameters[0].ParamType.TypeKind = tkInterface) and (TRttiInterfaceType(LRttiParameters[0].ParamType).GUID = ILuaContext) then
+    begin
+      LMethod.Code := LRttiMethod.CodeAddress;
+      LMethod.Data := aClass;
+      lua_pushlightuserdata(FState, Self);
+      lua_pushlightuserdata(FState, LMethod.Code);
+      lua_pushlightuserdata(FState, LMethod.Data);
+      lua_pushcclosure(FState, @LuaWrapperClosure, 3);
+
+      lua_setglobal(FState, LMarshall.AsAnsi(LRttiMethod.Name).ToPointer);
+    end;
+  end;
+
+  CleanStack;
+
+  if Assigned(LMethodAutoSetup) then
+  begin
+    LMethodAutoSetup.Invoke(aClass, [Self]);
+
+    CleanStack;
+  end;
+end;
+
+procedure TLua.RegisterRoutines(aObject: TObject);
+var
+  LRttiContext: TRttiContext;
+  LRttiType: TRttiType;
+  LRttiMethod: TRttiMethod;
+  LMethodAutoSetup: TRttiMethod;
+  LRttiParameters: TArray<System.Rtti.TRttiParameter>;
+  LMethod: TMethod;
+  LMarshall: TMarshaller;
+begin
+  if FState = nil then Exit;
+
+  LRttiType := LRttiContext.GetType(aObject.ClassType);
+  LMethodAutoSetup := nil;
+  for LRttiMethod in LRttiType.GetMethods do
+  begin
+    if (LRttiMethod.MethodKind <> mkProcedure) then  continue;
+    if (LRttiMethod.Visibility <> mvPublic) then continue;
+
+    LRttiParameters := LRttiMethod.GetParameters;
+
+    if SameText(LRttiMethod.Name, cLuaAutoSetup) then
+    begin
+      if (Length(LRttiParameters) = 1) and (Assigned(LRttiParameters[0].ParamType)) and (LRttiParameters[0].ParamType.TypeKind = tkInterface) and (TRttiInterfaceType(LRttiParameters[0].ParamType).GUID = ILua) then
+      begin
+        LMethodAutoSetup := LRttiMethod;
+      end;
+      continue;
+    end;
+
+    if (Length(LRttiParameters) = 1) and (Assigned(LRttiParameters[0].ParamType)) and (LRttiParameters[0].ParamType.TypeKind = tkInterface) and (TRttiInterfaceType(LRttiParameters[0].ParamType).GUID = ILuaContext) then
+    begin
+      LMethod.Code := LRttiMethod.CodeAddress;
+      LMethod.Data := aObject;
+      lua_pushlightuserdata(FState, Self);
+      lua_pushlightuserdata(FState, LMethod.Code);
+      lua_pushlightuserdata(FState, LMethod.Data);
+      lua_pushcclosure(FState, @LuaWrapperClosure, 3);
+
+      lua_setglobal(FState, LMarshall.AsAnsi(LRttiMethod.Name).ToPointer);
+    end;
+  end;
+
+  CleanStack;
+
+  if Assigned(LMethodAutoSetup) then
+  begin
+    LMethodAutoSetup.Invoke(aObject, [Self]);
+
+    CleanStack;
+  end;
+end;
+
+procedure TLua.RegisterRoutines(const aTables: string; aClass: TClass; const aTableName: string);
+var
+  LRttiContext: TRttiContext;
+  LRttiType: TRttiType;
+  LRttiMethod: TRttiMethod;
+  LMethodAutoSetup: TRttiMethod;
+
+  LRttiParameters: TArray<System.Rtti.TRttiParameter>;
+  LMethod: TMethod;
+  LMarshall: TMarshaller;
+  LIndex: Integer;
+  LNames: array of string;
+  TblName: string;
+  LI: Integer;
+  LItems: TStringDynArray;
+  LLastIndex: Integer;
+begin
+  if FState = nil then Exit;
+
+  if aTableName.IsEmpty then
+    TblName := aClass.ClassName
+  else
+    TblName := aTableName;
+
+  LItems := ParseTableNames(aTables);
+
+  if Length(LItems) > 0 then
+  begin
+    SetLength(LNames, Length(LItems) + 2);
+
+    for LI := 0 to High(LItems) do
+    begin
+      LNames[LI] := LItems[LI];
+    end;
+
+    LLastIndex := Length(LItems);
+
+    LNames[LLastIndex] := TblName;
+    LNames[LLastIndex + 1] := TblName;
+  end
+  else
+  begin
+    SetLength(LNames, 2);
+    LNames[0] := TblName;
+    LNames[1] := TblName;
+  end;
+
+  if not PushGlobalTableForSet(LNames, LIndex) then
+  begin
+    CleanStack;
+    Exit;
+  end;
+
+  LRttiType := LRttiContext.GetType(aClass);
+  LMethodAutoSetup := nil;
+  for LRttiMethod in LRttiType.GetMethods do
+  begin
+    if (LRttiMethod.MethodKind <> mkClassProcedure) then
+      continue;
+    if (LRttiMethod.Visibility <> mvPublic) then
+      continue;
+
+    LRttiParameters := LRttiMethod.GetParameters;
+
+    if SameText(LRttiMethod.Name, cLuaAutoSetup) then
+    begin
+      if (Length(LRttiParameters) = 1) and (Assigned(LRttiParameters[0].ParamType)) and (LRttiParameters[0].ParamType.TypeKind = tkInterface) and (TRttiInterfaceType(LRttiParameters[0].ParamType).GUID = ILua) then
+      begin
+        LMethodAutoSetup := LRttiMethod;
+      end;
+      continue;
+    end;
+
+    if (Length(LRttiParameters) = 1) and (Assigned(LRttiParameters[0].ParamType)) and (LRttiParameters[0].ParamType.TypeKind = tkInterface) and (TRttiInterfaceType(LRttiParameters[0].ParamType).GUID = ILuaContext) then
+    begin
+      LMethod.Code := LRttiMethod.CodeAddress;
+      LMethod.Data := aClass;
+      lua_pushlightuserdata(FState, Self);
+      lua_pushlightuserdata(FState, LMethod.Code);
+      lua_pushlightuserdata(FState, LMethod.Data);
+      lua_pushcclosure(FState, @LuaWrapperClosure, 3);
+
+      lua_setfield(FState, -2, LMarshall.AsAnsi(LRttiMethod.Name).ToPointer);
+    end;
+  end;
+
+  CleanStack;
+
+  if Assigned(LMethodAutoSetup) then
+  begin
+    LMethodAutoSetup.Invoke(aClass, [Self]);
+
+    CleanStack;
+  end;
+end;
+
+procedure TLua.RegisterRoutines(const aTables: string; aObject: TObject; const aTableName: string);
+var
+  LRttiContext: TRttiContext;
+  LRttiType: TRttiType;
+  LRttiMethod: TRttiMethod;
+  LMethodAutoSetup: TRttiMethod;
+  LRttiParameters: TArray<System.Rtti.TRttiParameter>;
+  LMethod: TMethod;
+  LMarshall: TMarshaller;
+  LIndex: Integer;
+  LNames: array of string;
+  TblName: string;
+  LI: Integer;
+  LItems: TStringDynArray;
+  LLastIndex: Integer;
+begin
+  if FState = nil then Exit;
+
+  if aTableName.IsEmpty then
+    TblName := aObject.ClassName
+  else
+    TblName := aTableName;
+
+  LItems := ParseTableNames(aTables);
+
+  if Length(LItems) > 0 then
+    begin
+      SetLength(LNames, Length(LItems) + 2);
+
+      LLastIndex := 0;
+      for LI := 0 to High(LItems) do
+      begin
+        LNames[LI] := LItems[LI];
+        LLastIndex := LI;
+      end;
+
+      LNames[LLastIndex] := TblName;
+      LNames[LLastIndex + 1] := TblName;
+    end
+  else
+    begin
+      SetLength(LNames, 2);
+      LNames[0] := TblName;
+      LNames[1] := TblName;
+    end;
+
+  if not PushGlobalTableForSet(LNames, LIndex) then
+  begin
+    CleanStack;
+    Exit;
+  end;
+
+  LRttiType := LRttiContext.GetType(aObject.ClassType);
+  LMethodAutoSetup := nil;
+  for LRttiMethod in LRttiType.GetMethods do
+  begin
+    if (LRttiMethod.MethodKind <> mkProcedure) then continue;
+    if (LRttiMethod.Visibility <> mvPublic) then continue;
+
+    LRttiParameters := LRttiMethod.GetParameters;
+
+    if SameText(LRttiMethod.Name, cLuaAutoSetup) then
+    begin
+      if (Length(LRttiParameters) = 1) and (Assigned(LRttiParameters[0].ParamType)) and (LRttiParameters[0].ParamType.TypeKind = tkInterface) and (TRttiInterfaceType(LRttiParameters[0].ParamType).GUID = ILua) then
+      begin
+        LMethodAutoSetup := LRttiMethod;
+      end;
+      continue;
+    end;
+
+    if (Length(LRttiParameters) = 1) and (Assigned(LRttiParameters[0].ParamType)) and (LRttiParameters[0].ParamType.TypeKind = tkInterface) and (TRttiInterfaceType(LRttiParameters[0].ParamType).GUID = ILuaContext) then
+    begin
+      LMethod.Code := LRttiMethod.CodeAddress;
+      LMethod.Data := aObject;
+      lua_pushlightuserdata(FState, Self);
+      lua_pushlightuserdata(FState, LMethod.Code);
+      lua_pushlightuserdata(FState, LMethod.Data);
+      lua_pushcclosure(FState, @LuaWrapperClosure, 3);
+
+      lua_setfield(FState, -2, LMarshall.AsAnsi(LRttiMethod.Name).ToPointer);
+    end;
+  end;
+
+  CleanStack;
+
+  if Assigned(LMethodAutoSetup) then
+  begin
+    LMethodAutoSetup.Invoke(aObject, [Self]);
+
+    CleanStack;
+  end;
+end;
+
+procedure TLua.CompileToStream(aFilename: string; aStream: TStream; aCleanOutput: Boolean);
+var
+  LInFilename: string;
+  LBundleFilename: string;
+begin
+  if FState = nil then Exit;
+
+  LInFilename := aFilename;
+  LBundleFilename := TPath.GetFileNameWithoutExtension(LInFilename) + '_bundle.lua';
+  LBundleFilename := TPath.Combine(TPath.GetDirectoryName(LInFilename), LBundleFilename);
+  Bundle(LInFilename, LBundleFilename);
+  LoadFile(PChar(LBundleFilename), False);
+  SaveByteCode(aStream);
+  CleanStack;
+
+  if aCleanOutput then
+  begin
+    if TFile.Exists(LBundleFilename) then
+    begin
+      TFile.Delete(LBundleFilename);
+    end;
+  end;
+end;
+
+procedure TLua.SetGCStepSize(aStep: Integer);
+begin
+  FGCStep := aStep;
+end;
+
+function TLua.GetGCStepSize: Integer;
+begin
+  Result := FGCStep;
+end;
+
+function TLua.GetGCMemoryUsed: Integer;
+begin
+  Result := 0;
+  if FState = nil then Exit;
+
+  Result := lua_gc(FState, LUA_GCCOUNT, FGCStep);
+end;
+
+procedure TLua.CollectGarbage;
+begin
+  if FState = nil then Exit;
+
+  lua_gc(FState, LUA_GCSTEP, FGCStep);
+end;
+
+{$ENDREGION}
+
 {$REGION ' DelphiGamekit.Game '}
 function TActor.GetAttribute(aIndex: Byte): Boolean;
 begin
@@ -30070,6 +32562,14 @@ begin
 end;
 
 procedure TGame.OnAfterRenderScene(const aSceneNum: Integer);
+begin
+end;
+
+procedure TGame.OnPreLuaReset;
+begin
+end;
+
+procedure TGame.OnPostLuaReset;
 begin
 end;
 

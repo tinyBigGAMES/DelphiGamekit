@@ -198,6 +198,7 @@ end;
 
 procedure TExample.OnShutdown;
 begin
+
   FreeNilObject(FCamera);
   FreeNilObject(FTexture);
 
