@@ -87,7 +87,6 @@ type
   { TDGTools }
   TDGTools = class(TGame)
   private
-    FCmdLine: TCmdLine;
   public
     constructor Create; override;
     destructor Destroy; override;
@@ -143,13 +142,13 @@ procedure TDGTools.Run;
 begin
   ShowHeader;
 
-  if FCmdLine.ParamExist('archive') then
+  if CmdLine.ParamExist('archive') then
     Archive
   else
-  if FCmdLine.ParamExist('video') then
+  if CmdLine.ParamExist('video') then
     Video
   else
-  if FCmdLine.ParamExist('audio') then
+  if CmdLine.ParamExist('audio') then
     Audio
   else
     ShowUsage;
@@ -164,20 +163,20 @@ var
   LArcFilename: string;
   LArchive: TArchive;
 begin
-  if FCmdLine.Count('archive') = 3 then
+  if CmdLine.Count('archive') = 3 then
     begin
-      LPassword := FCmdLine.Param('archive', 1);
-      LArcFilename := FCmdLine.Param('archive', 2);
-      LArcFolder := FCmdLine.Param('archive', 3);
+      LPassword := CmdLine.Param('archive', 1);
+      LArcFilename := CmdLine.Param('archive', 2);
+      LArcFolder := CmdLine.Param('archive', 3);
       LPassword := RemoveQuotes(LPassword);
       LArcFolder := RemoveQuotes(LArcFolder);
       LArcFilename := RemoveQuotes(LArcFilename);
     end
   else
-  if FCmdLine.Count('archive') = 2 then
+  if CmdLine.Count('archive') = 2 then
     begin
-      LArcFilename := FCmdLine.Param('archive', 2);
-      LArcFolder := FCmdLine.Param('archive', 3);
+      LArcFilename := CmdLine.Param('archive', 2);
+      LArcFolder := CmdLine.Param('archive', 3);
       LArcFolder := RemoveQuotes(LArcFolder);
       LArcFilename := RemoveQuotes(LArcFilename);
     end
@@ -239,7 +238,7 @@ var
   LCmdLine: string;
   LExitCode: Cardinal;
 begin
-  if FCmdLine.Count('video') <> 2 then
+  if CmdLine.Count('video') <> 2 then
   begin
     PrintLn;
     PrintLn('Incorrect number of parameters');
@@ -248,7 +247,7 @@ begin
     Exit;
   end;
 
-  LInputFilename := FCmdLine.Param('video', 1);
+  LInputFilename := CmdLine.Param('video', 1);
   LInputFilename := RemoveQuotes(LInputFilename);
   if not TFile.Exists(LInputFilename) then
   begin
@@ -259,7 +258,7 @@ begin
     Exit;
   end;
 
-  LOutputFilename := FCmdLine.Param('video', 2);
+  LOutputFilename := CmdLine.Param('video', 2);
   LOutputFilename := RemoveQuotes(LOutputFilename);
   LOutputFilename := TPath.ChangeExtension(LOutputFilename, MPGEXT);
   LOutputFilename := TPath.GetFullPath(LOutputFilename);
@@ -315,7 +314,7 @@ var
   LCmdLine: string;
   LExitCode: Cardinal;
 begin
-  if FCmdLine.Count('audio') <> 2 then
+  if CmdLine.Count('audio') <> 2 then
   begin
     PrintLn;
     PrintLn('Incorrect number of parameters');
@@ -324,7 +323,7 @@ begin
     Exit;
   end;
 
-  LInputFilename := FCmdLine.Param('audio', 1);
+  LInputFilename := CmdLine.Param('audio', 1);
   LInputFilename := RemoveQuotes(LInputFilename);
   if not TFile.Exists(LInputFilename) then
   begin
@@ -335,7 +334,7 @@ begin
     Exit;
   end;
 
-  LOutputFilename := FCmdLine.Param('audio', 2);
+  LOutputFilename := CmdLine.Param('audio', 2);
   LOutputFilename := RemoveQuotes(LOutputFilename);
   LOutputFilename := TPath.ChangeExtension(LOutputFilename, OGGEXT);
   LOutputFilename := TPath.GetFullPath(LOutputFilename);

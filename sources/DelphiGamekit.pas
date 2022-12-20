@@ -108,13 +108,16 @@ interface
 {$REGION ' Unit Uses Section '}
 uses
   System.Types,
-  System.SysUtils,
+  System.Rtti,
+  System.TypInfo,
   System.Generics.Defaults,
   System.Generics.Collections,
+  System.SysUtils,
   System.Classes,
   System.Contnrs,
   System.IOUtils,
   System.StrUtils,
+  System.DateUtils,
   System.IniFiles,
   System.Math,
   System.JSON,
@@ -134,8 +137,185 @@ uses
   WinApi.Messages,
   WinApi.ShellAPI,
   Winapi.ActiveX,
-  System.Rtti,
-  System.TypInfo;
+  System.Net.HttpClientComponent,
+  DelphiGamekit.Json;
+{$ENDREGION}
+
+{$REGION ' DelphiGamekit.Deps.Stripe '}
+//DOM-IGNORE-BEGIN
+type
+  IStripeBaseObject = interface
+  ['{AC396FFE-A89C-4811-8DDD-5A3A69546155}']
+    function  GetID: string;
+    function  GetObject: string;
+    function  GetAsJson: string;
+    procedure SetID(const Value: string);
+    procedure Clear;
+    procedure LoadFromJson(AJson: TDGJsonObject);
+    property  ID: string read GetID write SetID;
+    property  Obj: string read GetObject;
+    property  AsJson: string read GetAsJson;
+  end;
+
+  IStripeBaseObjectList<T> = interface
+  ['{3FD36F72-3FF3-4377-AE0E-120A19C63354}']
+    function  GetCount: integer;
+    function  GetItem(index: integer): T;
+    function  GetListID: string;
+    procedure Clear;
+    procedure LoadFromJson(AJson: TDGJsonObject);
+    property  Count: integer read GetCount;
+    property  Item[index: integer]: T read GetItem; default;
+  end;
+
+  IStripeCard = interface(IStripeBaseObject)
+  ['{76652D56-42CE-4C2F-B0B2-1E6485D501AD}']
+    function GetBrand: string;
+    function GetLast4: string;
+    function GetExpMonth: integer;
+    function GetExpYear: integer;
+    property Last4: string read GetLast4;
+    property Brand: string read GetBrand;
+    property ExpMonth: integer read GetExpMonth;
+    property ExpYear: integer read GetExpYear;
+  end;
+
+  IStripeCharge = interface(IStripeBaseObject)
+  ['{197B9D1A-B4F1-4220-AFDC-22DE5031F1B4}']
+    function GetCreated: TDatetime;
+    function GetLiveMode: Boolean;
+    function GetPaid: Boolean;
+    function GetStatus: string;
+    function GetAmountPence: integer;
+    function GetCurrency: string;
+    function GetRefunded: Boolean;
+    function GetCard: IStripeCard;
+    function GetCustomer: string;
+    function GetDesc: string;
+    property Created: TDateTime read GetCreated;
+    property LiveMode: Boolean read GetLiveMode;
+    property Paid: Boolean read GetPaid;
+    property Status: string read GetStatus;
+    property AmountPence: integer read GetAmountPence;
+    property Currency: string read GetCurrency;
+    property Refunded: Boolean read GetRefunded;
+    property Customer: string read GetCustomer;
+    property Card: IStripeCard read GetCard;
+    property Desc: string read GetDesc;
+  end;
+
+  IStripeChargeList = interface(IStripeBaseObjectList<IStripeCharge>)
+  ['{1A44D5B8-4355-4200-8295-A19D85F4D710}']
+  end;
+
+  IStripePlan = interface(IStripeBaseObject)
+  ['{E37D8D42-0FDE-4108-BD58-56603955FDCC}']
+    function GetAmountPence: integer;
+    function GetCreated: TDateTime;
+    function GetCurrency: string;
+    function GetInterval: string;
+    function GetIntervalCount: integer;
+    function GetName: string;
+    function GetStatementDescriptor: string;
+    function GetTrialPeriodDays: integer;
+    property Interval: string read GetInterval;
+    property Name: string read GetName;
+    property Created: TDateTime read GetCreated;
+    property AmountPence: integer read GetAmountPence;
+    property Currency: string read GetCurrency;
+    property IntervalCount: integer read GetIntervalCount;
+    property TrialPeriodDays: integer read GetTrialPeriodDays;
+    property StatementDescriptor: string read GetStatementDescriptor;
+  end;
+
+  IStripeSubscription = interface(IStripeBaseObject)
+  ['{3F2BE016-7483-4020-BEB6-F0A3B55E9753}']
+    function GetCancelledAt: TDateTime;
+    function GetCurrentPeriodEnd: TDateTime;
+    function GetCurrentPeriodStart: TDateTime;
+    function GetCustomer: string;
+    function GetEndedAt: TDateTime;
+    function GetPlan: IStripePlan;
+    function GetQuantity: integer;
+    function GetStart: TDateTime;
+    function GetStatus: string;
+    function GetTaxPercent: single;
+    function GetTrialEnd: TDateTime;
+    function GetTrialStart: TDateTime;
+    property Plan: IStripePlan read GetPlan;
+    property Start: TDateTime read GetStart;
+    property Status: string read GetStatus;
+    property Customer: string read GetCustomer;
+    property CurrentPeriodStart: TDateTime read GetCurrentPeriodStart;
+    property CurrentPeriodEnd: TDateTime read GetCurrentPeriodEnd;
+    property EndedAt: TDateTime read GetEndedAt;
+    property TrialStart: TDateTime read GetTrialStart;
+    property TrialEnd: TDateTime read GetTrialEnd;
+    property CancelledAt: TDateTime read GetCancelledAt;
+    property Quantity: integer read GetQuantity;
+    property TaxPercent: single read GetTaxPercent;
+  end;
+
+  IStripeCustomer = interface(IStripeBaseObject)
+  ['{CFA07B51-F63C-4972-ACAB-FA51D6DF5779}']
+    function  GetEmail: string;
+    function  GetName: string;
+    function  GetDescription: string;
+    procedure SetName(const Value: string);
+    procedure SetEmail(const Value: string);
+    procedure Assign(ACustomer: IStripeCustomer);
+    procedure SetDescription(const Value: string);
+    property  Name: string read GetName write SetName;
+    property  Email: string read GetEmail write SetEmail;
+    property  Description: string read GetDescription write SetDescription;
+  end;
+
+  IStripeCustomerList = interface(IStripeBaseObjectList<IStripeCustomer>)
+  ['{A84D8E11-C142-4E4C-9698-A6DFBCE14742}']
+  end;
+
+  IStripe = interface
+  ['{A00E2188-0DDB-469F-9C4A-0900DEEFD27B}']
+    function  GetLastError: string;
+    function  GetLastJsonResult: string;
+    function  CreateToken(ACardNum: string; AExpMonth, AExpYear: integer; ACvc: string): string;
+    function  ChargePaymentMethod(ACustID, APaymentMethod, ACurrency, ADesc: string; AAmountCents: integer; var AError: string): IStripeCharge;
+    function  CreateCharge(AToken, ADescription: string; AAmountPence: string; AMetaData: TStrings; var AError: string; const ACurrency: string): IStripeCharge;
+    function  GetCharge(AChargeID: string): IStripeCharge; overload;
+    function  GetCharges: IStripeChargeList;
+    procedure GetCharge(AChargeID: string; ACharge: TDGJsonObject); overload;
+    function  GetCheckoutSession(ASessionID: string): TDGJsonObject;
+    function  GetSetupIntent(ASetupIntentID: string): TDGJsonObject;
+    function  CreateCard(ACustID, ACardToken: string; var AError: string): IStripeCard; overload;
+    function  CreateCard(ACustID, ACardNum: string; AExpMonth, AExpYear: integer; ACvc: string; var AError: string): IStripeCard; overload;
+    function  CreateSetupIntent(ACustID: string): string;
+    function  CreatePaymentIntent(ACustID, ADescription: string; AAmountCents: integer; const AMetaData: TStrings = nil): string;
+    function  DeleteCard(ACustID, ACardID: string): Boolean;
+    function  UpdateDefaultSource(ACustID, ACardID: string): Boolean;
+    function  CreateChargeForCustomer(ACustID, ADescription: string; AAmountPence: string; const ACurrency: string): IStripeCharge;
+    function  RefundCharge(AChargeID: string): string;
+    procedure GetCustomer(ACustID: string; AJson: TDGJsonObject); overload;
+    function  GetCustomer(ACustID: string): IStripeCustomer; overload;
+    function  CustomerExists(ACustID: string; ACustomer: IStripeCustomer): Boolean;
+    function  GetAccount: string;
+    procedure GetInvoice(AInvID: string; AJson: TDGJsonObject);
+    function  GetPaymentMethod(APaymentMethodID: string): string;
+    function  GetPaymentIntent(APaymentIntentID: string): string;
+    function  GetSelfServiceUrl(ACustID, AReturnURL: string): string;
+    function  GetCapabilities: string;
+    function  GetPersons: string;
+    function  GetCustomers(const ACreatedAfter: TDateTime=-1; const ACreatedBefore: TDateTime=-1; const ALimit: Integer=10): IStripeCustomerList;
+    function  CreateCustomer(AName, AEmail, ADescription, APaymentMethod: string): IStripeCustomer;
+    function  GetBalance: Extended;
+    function  TestCredentials(var AError: string): Boolean;
+    procedure UpdateCustomerValue(ACustID, AField, AValue: string);
+    property  LastError: string read GetLastError;
+    property  LastJsonResult: string read GetLastJsonResult;
+  end;
+
+function CreateStripe(ASecretKey: string): IStripe;
+function CreateStripeCustomer: IStripeCustomer;
+//DOM-IGNORE-END
 {$ENDREGION}
 
 {$REGION ' DelphiGamekit.Deps.LuaJIT '}
@@ -14043,6 +14223,29 @@ type
     function  GetLastError: string;
   end;
 
+type
+  TInAppPurchase = class(TBaseObject)
+  protected
+    FError: string;
+    FStatus: string;
+    FDescription: string;
+    FId: string;
+    FAmount: string;
+    FCurrency: string;
+    FBusy: Boolean;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+    function  Busy: Boolean;
+    procedure Buy(const aKey, aDescription: string; aAmount: Single; const aCurrency: string; const aCardNum: string; aExpMonth: Integer; aExpYear: Integer; aCvc: string);
+    function GetLastError: string;
+    function GetStatus: string;
+    function GetDescription: string;
+    function GetId: string;
+    function GetAmount: string;
+    function GetCurrency: string;
+  end;
+
 function  HttpGet(const aURL: string; const aStatus: PString=nil): string;
 
 {$ENDREGION}
@@ -14612,6 +14815,7 @@ type
     procedure OnAfterRenderScene(const aSceneNum: Integer); virtual;
     procedure OnPreLuaReset; virtual;
     procedure OnPostLuaReset; virtual;
+    procedure OnInAppPurchase(aPurchase: TInAppPurchase); virtual;
   end;
 
   TGameClass = class of TGame;
@@ -14624,6 +14828,1407 @@ procedure RunGame(const aGame: TGameClass);
 {$ENDREGION}
 
 implementation
+
+{$REGION ' DelphiGamekit.Deps.Stripe '}
+const
+  C_ACCOUNT = 'account';
+  C_CAPABILITIES = 'capabilities';
+  C_BALANCE = 'balance';
+  C_CARD = 'card';
+  C_CARDS = 'cards';
+  C_CHARGE = 'charge';
+  C_CHARGES = 'charges';
+  C_CUSTOMER = 'customer';
+  C_CUSTOMERS = 'customers';
+  C_INVOICES = 'invoices';
+  C_TOKEN  = 'token';
+  C_TOKENS = 'tokens';
+  C_PERSONS = 'persons';
+  C_PLAN = 'plan';
+  C_PLANS = 'plans';
+  C_SUBSCRIPTION = 'subscription';
+  C_SUBSCRIPTIONS = 'subscriptions';
+  C_SETUP_INTENTS = 'setup_intents';
+  C_PAYMENT_INTENTS = 'payment_intents';
+  C_PAYMENT_METHODS = 'payment_methods';
+
+type
+  TStripeBaseObject = class(TInterfacedObject, IStripeBaseObject)
+  strict private
+    FJson: TDGJsonObject;
+    FId: string;
+  private
+    procedure SetID(const Value: string);
+    function GetAsJson: string;
+  protected
+    function GetID: string;
+    function GetObject: string; virtual; abstract;
+    procedure LoadFromJson(AJson: TDGJsonObject); virtual;
+  public
+    constructor Create; virtual;
+    destructor Destroy; override;
+    procedure Clear; virtual;
+    property ID: string read GetID write SetID;
+    property AsJson: string read GetAsJson;
+  end;
+
+  TStripeBaseObjectList<T> = class(TInterfacedObject, IStripeBaseObjectList<T>)
+  strict private
+    FItems: TList<T>;
+  private
+    function GetCount: integer;
+  protected
+    constructor Create; virtual;
+    destructor Destroy; override;
+    function CreateObject: T; virtual; abstract;
+    function AddObject: T; virtual;
+    function GetListID: string; virtual; abstract;
+    procedure Clear;
+    procedure LoadFromJson(AJson: TDGJsonObject); virtual; abstract;
+    function GetItem(index: integer): T;
+    property Count: integer read GetCount;
+    property Item[index: integer]: T read GetItem; default;
+  end;
+
+  TStripeCharge = class(TStripeBaseObject, IStripeCharge)
+  strict private
+    FCreated: TDateTime;
+    FDesc: string;
+    FLiveMode: Boolean;
+    FPaid: Boolean;
+    FStatus: string;
+    FAmountPence: integer;
+    FCurrency: string;
+    FRefunded: Boolean;
+    FCustomer: string;
+    FCard: IStripeCard;
+  private
+    function GetCreated: TDatetime;
+    function GetLiveMode: Boolean;
+    function GetPaid: Boolean;
+    function GetStatus: string;
+    function GetAmountPence: integer;
+    function GetCurrency: string;
+    function GetRefunded: Boolean;
+    function GetCustomer: string;
+    function GetCard: IStripeCard;
+    function GetDesc: string;
+  protected
+    function GetObject: string; override;
+    procedure Clear; override;
+    procedure LoadFromJson(AJson: TDGJsonObject); override;
+    property Created: TDateTime read GetCreated;
+    property LiveMode: Boolean read GetLiveMode;
+    property Paid: Boolean read GetPaid;
+    property Status: string read GetStatus;
+    property AmountPence: integer read GetAmountPence;
+    property Currency: string read GetCurrency;
+    property Refunded: Boolean read GetRefunded;
+    property Customer: string read GetCustomer;
+    property Card: IStripeCard read GetCard;
+    property Desc: string read GetDesc;
+  public
+    constructor Create; override;
+  end;
+
+  TStripeChargeList = class(TStripeBaseObjectList<IStripeCharge>, IStripeChargeList)
+  protected
+    function CreateObject: IStripeCharge; override;
+    function GetListID: string; override;
+    procedure LoadFromJson(AJson: TDGJsonObject); override;
+  end;
+
+  TStripeCard = class(TStripeBaseObject, IStripeCard)
+  strict private
+    FBrand: string;
+    FLast4: string;
+    FExpMonth: integer;
+    FExpYear: integer;
+  private
+    function GetBrand: string;
+    function GetLast4: string;
+    function GetExpMonth: integer;
+    function GetExpYear: integer;
+  protected
+    function GetObject: string; override;
+    procedure Clear; override;
+    procedure LoadFromJson(AJson: TDGJsonObject); override;
+  public
+    property Last4: string read GetLast4;
+    property Brand: string read GetBrand;
+    property ExpMonth: integer read GetExpMonth;
+    property ExpYear: integer read GetExpYear;
+  end;
+
+  TStripePlan = class(TStripeBaseObject, IStripePlan)
+  strict private
+    FInterval: string;
+    FName: string;
+    FCreated: TDateTime;
+    FAmountPence: integer;
+    FCurrency: string;
+    FIntervalCount: integer;
+    FTrialPeriodDays: integer;
+    FStatementDescriptor: string;
+  private
+    function GetAmountPence: integer;
+    function GetCreated: TDateTime;
+    function GetCurrency: string;
+    function GetInterval: string;
+    function GetIntervalCount: integer;
+    function GetName: string;
+    function GetStatementDescriptor: string;
+    function GetTrialPeriodDays: integer;
+  protected
+    function GetObject: string; override;
+    procedure LoadFromJson(AJson: TDGJsonObject); override;
+    property Interval: string read GetInterval;
+    property Name: string read GetName;
+    property Created: TDateTime read GetCreated;
+    property AmountPence: integer read GetAmountPence;
+    property Currency: string read GetCurrency;
+    property IntervalCount: integer read GetIntervalCount;
+    property TrialPeriodDays: integer read GetTrialPeriodDays;
+    property StatementDescriptor: string read GetStatementDescriptor;
+  end;
+
+  TStripeSubscription = class(TStripeBaseObject, IStripeSubscription)
+  strict private
+    FPlan: IStripePlan;
+    FStart: TDateTime;
+    FStatus: string;
+    FCustomer: string;
+    FCurrentPeriodStart: TDateTime;
+    FCurrentPeriodEnd: TDateTime;
+    FEndedAt: TDateTime;
+    FTrialStart: TDateTime;
+    FTrialEnd: TDateTime;
+    FCancelledAt: TDateTime;
+    FQuantity: integer;
+    FTaxPercent: Single;
+  private
+    function GetCancelledAt: TDateTime;
+    function GetCurrentPeriodEnd: TDateTime;
+    function GetCurrentPeriodStart: TDateTime;
+    function GetCustomer: string;
+    function GetEndedAt: TDateTime;
+    function GetPlan: IStripePlan;
+    function GetQuantity: integer;
+    function GetStart: TDateTime;
+    function GetStatus: string;
+    function GetTaxPercent: single;
+    function GetTrialEnd: TDateTime;
+    function GetTrialStart: TDateTime;
+  protected
+    function GetObject: string; override;
+    procedure LoadFromJson(AJson: TDGJsonObject); override;
+  public
+    constructor Create; override;
+    property Plan: IStripePlan read GetPlan;
+    property Start: TDateTime read GetStart;
+    property Status: string read GetStatus;
+    property Customer: string read GetCustomer;
+    property CurrentPeriodStart: TDateTime read GetCurrentPeriodStart;
+    property CurrentPeriodEnd: TDateTime read GetCurrentPeriodEnd;
+    property EndedAt: TDateTime read GetEndedAt;
+    property TrialStart: TDateTime read GetTrialStart;
+    property TrialEnd: TDateTime read GetTrialEnd;
+    property CancelledAt: TDateTime read GetCancelledAt;
+    property Quantity: integer read GetQuantity;
+    property TaxPercent: single read GetTaxPercent;
+  end;
+
+  TStripeCustomer = class(TStripeBaseObject, IStripeCustomer)
+  strict private
+    FEmail: string;
+    FName: string;
+    FDescription: string;
+  private
+    function GetEmail: string;
+    procedure SetEmail(const Value: string);
+    function GetDescription: string;
+    procedure SetDescription(const Value: string);
+    function GetName: string;
+    procedure SetName(const Value: string);
+  protected
+    function GetObject: string; override;
+    procedure LoadFromJson(AJson: TDGJsonObject); override;
+    property Name: string read GetName write SetName;
+    property Email: string read GetEmail write SetEmail;
+    property Description: string read GetDescription write SetDescription;
+  public
+    procedure Assign(ACustomer: IStripeCustomer);
+    procedure Clear; override;
+  end;
+
+  TStripeCustomerList = class(TStripeBaseObjectList<IStripeCustomer>, IStripeCustomerList)
+  protected
+    function CreateObject: IStripeCustomer; override;
+    function GetListID: string; override;
+    procedure LoadFromJson(AJson: TDGJsonObject); override;
+  end;
+
+  TStripe = class(TInterfacedObject, IStripe)
+  strict private
+    FSecretKey: string;
+    FLastError: string;
+    FLastJsonResult: string;
+  private
+    procedure CheckForError(AJson: TDGJsonObject);
+    procedure NetHTTPClient1AuthEvent(const Sender: TObject;
+                                      AnAuthTarget: TAuthTargetType;
+                                      const ARealm, AURL: string; var AUserName,
+                                      APassword: string; var AbortAuth: Boolean;
+                                      var Persistence: TAuthPersistenceType);
+    function CreateHttp: TNetHTTPClient;
+    function GetHttp(AMethod: string; AParams: TStrings): string;
+    function PostHttp(AToken, AMethod: string; AParams: TStrings): string;
+    function DeleteHttp(AMethod: string): string;
+    function GetLastError: string;
+    function GetLastJsonResult: string;
+  protected
+    function CreateToken(ACardNum: string; AExpMonth, AExpYear: integer; ACvc: string): string;
+    function ChargePaymentMethod(ACustID, APaymentMethod, ACurrency, ADesc: string; AAmountCents: integer; var AError: string): IStripeCharge;
+    function CreateCharge(AToken, ADescription: string; AAmountPence: string; AMetaData: TStrings; var AError: string; const ACurrency: string): IStripeCharge;
+    function GetCharge(AChargeID: string): IStripeCharge; overload;
+    function GetCharges: IStripeChargeList;
+    procedure GetCharge(AChargeID: string; ACharge: TDGJsonObject); overload;
+    function GetCheckoutSession(ASessionID: string): TDGJsonObject;
+    function GetSetupIntent(ASetupIntentID: string): TDGJsonObject;
+    function RefundCharge(AChargeID: string): string;
+    function CreateCard(ACustID, ACardToken: string; var AError: string): IStripeCard; overload;
+    function CreateCard(ACustID, ACardNum: string; AExpMonth, AExpYear: integer; ACvc: string; var AError: string): IStripeCard; overload;
+    function CreateSetupIntent(ACustID: string): string;
+    function CreatePaymentIntent(ACustID, ADescription: string; AAmountCents: integer; const AMetaData: TStrings = nil): string;
+    function DeleteCard(ACustID, ACardID: string): Boolean;
+    function UpdateDefaultSource(ACustID, ACardID: string): Boolean;
+    procedure UpdateCustomerValue(ACustID, AField, AValue: string);
+    function CreateChargeForCustomer(ACustID, ADescription: string; AAmountPence: string; const ACurrency: string): IStripeCharge;
+    function GetAccount: string;
+    function GetCapabilities: string;
+    function GetPersons: string;
+    function GetPaymentMethod(APaymentMethodID: string): string;
+    function GetPaymentIntent(APaymentIntentID: string): string;
+    function GetSelfServiceUrl(ACustID, AReturnURL: string): string;
+    function CustomerExists(ACustID: string; ACustomer: IStripeCustomer): Boolean;
+    function GetCustomer(ACustID: string): IStripeCustomer; overload;
+    procedure GetCustomer(ACustID: string; AJson: TDGJsonObject); overload;
+    function GetCustomers(const ACreatedAfter: TDateTime  = -1;
+                          const ACreatedBefore: TDateTime = -1;
+                          const ALimit: Integer = 10): IStripeCustomerList;
+    procedure GetInvoice(AInvID: string; AJson: TDGJsonObject);
+    function GetBalance: Extended;
+    function TestCredentials(var AError: string): Boolean;
+    function CreateCustomer(AName, AEmail, ADescription, APaymentMethod: string): IStripeCustomer;
+    property LastError: string read GetLastError;
+    property LastJsonResult: string read GetLastJsonResult;
+  public
+    constructor Create(ASecretKey: string);
+  end;
+
+function  CreateStripe(ASecretKey: string): IStripe;
+begin
+  Result := TStripe.Create(ASecretKey);
+end;
+
+function CreateStripeCustomer: IStripeCustomer;
+begin
+  Result := TStripeCustomer.Create;
+end;
+
+constructor TStripe.Create(ASecretKey: string);
+begin
+  inherited Create;
+  FSecretKey := ASecretKey;
+end;
+
+procedure TStripe.CheckForError(AJson: TDGJsonObject);
+var
+  AError: TDGJsonObject;
+begin
+  FLastError := '';
+  if AJson.Contains('error') then
+  begin
+    AError := AJson.O['error'] as TDGJsonObject;
+    FLastError := AError.s['message'];
+  end;
+end;
+
+function TStripe.CreateCard(ACustID, ACardToken: string; var AError: string): IStripeCard;
+var
+  AParams: TStrings;
+  AResult: string;
+  AJson: TDGJsonObject;
+begin
+  Result := TStripeCard.Create;
+  AParams := TStringList.Create;
+  try
+    AParams.Values['source'] := ACardToken;
+    AResult := PostHttp('', C_CUSTOMERS+'/'+ACustID+'/sources',AParams);
+    AJson := TDGJsonObject.Parse(AResult) as TDGJsonObject;
+    try
+      CheckForError(AJson);
+      AError := FLastError;
+      if FLastError <> '' then
+        Exit;
+      Result.LoadFromJson(AJson);// := // AJson.Values['id'].Value;
+    finally
+      AJson.Free;
+    end;
+  finally
+    AParams.Free;
+  end;
+end;
+
+function TStripe.CreateCharge(AToken, ADescription: string; AAmountPence: string; AMetaData: TStrings; var AError: string; const ACurrency: string): IStripeCharge;
+var
+  AParams: TStrings;
+  AResult: string;
+  AJson: TDGJsonObject;
+  ICount: integer;
+begin
+  Result := TStripeCharge.Create;
+  AParams := TStringList.Create;
+  try
+    AParams.Values['amount'] := AAmountPence;
+    AParams.Values['currency'] := ACurrency;
+    AParams.Values['description'] := ADescription;
+    if AMetaData <> nil then
+    begin
+      for ICount := 0 to AMetaData.Count-1 do
+        AParams.Values['metadata['+AMetaData.Names[ICount]+']'] := AMetaData.ValueFromIndex[ICount];
+    end;
+    AResult := PostHttp(AToken, C_CHARGES, AParams);
+    AJson := TDGJsonObject.Parse(AResult) as TDGJsonObject;
+    try
+      CheckForError(AJson);
+      AError := FLastError;
+      Result.LoadFromJson(AJson);
+    finally
+      AJson.Free;
+    end;
+  finally
+    AParams.Free;
+  end;
+end;
+
+function TStripe.CreateChargeForCustomer(ACustID, ADescription: string; AAmountPence: string; const ACurrency: string): IStripeCharge;
+begin
+  Result := nil;
+end;
+
+function TStripe.CreateHttp: TNetHTTPClient;
+begin
+  Result := TNetHTTPClient.Create(nil);
+  Result.OnAuthEvent := NetHTTPClient1AuthEvent;
+end;
+
+function TStripe.CreatePaymentIntent(ACustID, ADescription: string; AAmountCents: integer; const AMetaData: TStrings = nil): string;
+var
+  AParams: TStrings;
+  AResult: string;
+  AJson: TDGJsonObject;
+  ICount: integer;
+begin
+  AParams := TStringList.Create;
+  try
+    AParams.Values['payment_method_types[]'] := 'card';
+    AParams.Values['customer'] := ACustID;
+    AParams.Values['currency'] := 'usd';
+    AParams.Values['description'] := ADescription;
+    AParams.Values['amount'] := AAmountCents.ToString;
+    if AMetaData <> nil then
+    begin
+      for ICount := 0 to AMetaData.Count-1 do
+        AParams.Values['metadata['+AMetaData.Names[ICount]+']'] := AMetaData.ValueFromIndex[ICount];
+    end;
+    AResult := PostHttp('', C_PAYMENT_INTENTS, AParams);
+    AJson := TDGJsonObject.Parse(AResult) as TDGJsonObject;
+    CheckForError(AJson);
+    try
+      Result := AJson.Values['client_secret'].Value;
+    finally
+      AJson.Free;
+    end;
+  finally
+    AParams.Free;
+  end;
+end;
+
+function TStripe.ChargePaymentMethod(ACustID, APaymentMethod, ACurrency, ADesc: string; AAmountCents: integer; var AError: string): IStripeCharge;
+var
+  AParams: TStrings;
+  AResult: string;
+  AJson: TDGJsonObject;
+begin
+  Result := TStripeCharge.Create;
+  AParams := TStringList.Create;
+  try
+    AParams.Values['amount'] := AAmountCents.ToString;
+    AParams.Values['currency'] := ACurrency;
+    if ACustID <> '' then
+      AParams.Values['customer'] := ACustID;
+    if APaymentMethod <> '' then
+    begin
+      AParams.Values['payment_method'] := APaymentMethod;
+      AParams.Values['description'] := ADesc;
+      AParams.Values['off_session'] := 'true';
+      AParams.Values['confirm'] := 'true';
+    end;
+    AResult := PostHttp('', C_PAYMENT_INTENTS, AParams);
+    AJson := TDGJsonObject.Parse(AResult) as TDGJsonObject;
+    try
+      if AJson.Contains('error') then
+      begin
+        AError := AJson.O['error'].S['message'];
+        Exit;
+      end;
+      Result := GetCharge(AJson.O['charges'].A['data'][0].S['id']);
+      CheckForError(AJson);
+    finally
+      AJson.Free;
+    end;
+  finally
+    AParams.Free;
+  end;
+end;
+
+function TStripe.CreateSetupIntent(ACustID: string): string;
+var
+  AParams: TStrings;
+  AResult: string;
+  AJson: TDGJsonObject;
+begin
+  AParams := TStringList.Create;
+  try
+    AParams.Values['payment_method_types[]'] := 'card';
+    if ACustID <> '' then
+      AParams.Values['customer'] := ACustID;
+    AParams.Values['usage'] := 'off_session';
+    AResult := PostHttp('', C_SETUP_INTENTS, AParams);
+    AJson := TDGJsonObject.Parse(AResult) as TDGJsonObject;
+    CheckForError(AJson);
+    try
+      Result := AJson.Values['client_secret'].Value;
+    finally
+      AJson.Free;
+    end;
+  finally
+    AParams.Free;
+  end;
+end;
+
+function TStripe.CreateToken(ACardNum: string; AExpMonth, AExpYear: integer;
+  ACvc: string): string;
+var
+  AParams: TStrings;
+  AResult: string;
+  AJson: TDGJsonObject;
+begin
+  AParams := TStringList.Create;
+  try
+    AParams.Values['card[number]'] := ACardNum;
+    AParams.Values['card[exp_month]'] := IntToStr(AExpMonth);
+    AParams.Values['card[exp_year]'] := IntToStr(AExpYear);
+    AParams.Values['card[cvc]'] := ACvc;
+    AResult := PostHttp('', C_TOKENS,AParams);
+    AJson := TDGJsonObject.Parse(AResult) as TDGJsonObject;
+    CheckForError(AJson);
+    try
+      Result := AJson.Values['id'].Value;
+    finally
+      AJson.Free;
+    end;
+  finally
+    AParams.Free;
+  end;
+end;
+
+function TStripe.CreateCard(ACustID, ACardNum: string; AExpMonth, AExpYear: integer;
+  ACvc: string; var AError: string): IStripeCard;
+var
+  AParams: TStrings;
+  AResult: string;
+  AJson: TDGJsonObject;
+begin
+  Result := TStripeCard.Create;
+  AParams := TStringList.Create;
+  try
+    AParams.Values['source[object]'] := 'card';
+    AParams.Values['source[number]'] := ACardNum;
+    AParams.Values['source[exp_month]'] := IntToStr(AExpMonth);
+    AParams.Values['source[exp_year]'] := IntToStr(AExpYear);
+    AParams.Values['source[cvc]'] := ACvc;
+    AResult := PostHttp('', C_CUSTOMERS+'/'+ACustID+'/sources',AParams);
+    AJson := TDGJsonObject.Parse(AResult) as TDGJsonObject;
+    try
+      CheckForError(AJson);
+      AError := FLastError;
+      if FLastError <> '' then
+        Exit;
+      Result.LoadFromJson(AJson);
+    finally
+      AJson.Free;
+    end;
+  finally
+    AParams.Free;
+  end;
+end;
+
+function TStripe.CustomerExists(ACustID: string; ACustomer: IStripeCustomer): Boolean;
+var
+  ACust: IStripeCustomer;
+begin
+  ACust := GetCustomer(ACustID);
+  Result := ACust.ID <> '';
+  if (Result) and (ACustomer <> nil) then
+    ACustomer.Assign(ACust);
+end;
+
+function TStripe.DeleteCard(ACustID, ACardID: string): Boolean;
+var
+  AResult: string;
+begin
+  AResult := DeleteHttp('customers/'+ACustID+'/sources/'+ACardID);
+  Result := True;
+end;
+
+function TStripe.GetAccount: string;
+begin
+  Result := GetHttp(C_ACCOUNT, nil);
+end;
+
+function TStripe.GetBalance: Extended;
+var
+  AResult: string;
+begin
+  Result := 0;
+  AResult := GetHttp(C_BALANCE, nil);
+  if True then
+end;
+
+function TStripe.GetCapabilities: string;
+begin
+  Result := GetHttp('accounts/acct_1Ei2lxJ9jnzBMBPN/capabilities', nil);
+end;
+function TStripe.GetCharge(AChargeID: string): IStripeCharge;
+var
+  AData: string;
+  AJson: TDGJsonObject;
+begin
+  Result := TStripeCharge.Create;
+  AData := GetHttp(C_CHARGES+'/'+AChargeID, nil);
+  AJson := TDGJsonObject.Parse(AData) as TDGJsonObject;
+  try
+    Result.LoadFromJson(AJson);
+  finally
+    AJson.Free;
+  end;
+end;
+
+procedure TStripe.GetCharge(AChargeID: string; ACharge: TDGJsonObject);
+begin
+  ACharge.FromJSON(GetHttp(C_CHARGES+'/'+AChargeID, nil));
+end;
+function TStripe.GetCharges: IStripeChargeList;
+var
+  AResult: string;
+  AJson: TDGJsonObject;
+  AParams: TStrings;
+begin
+  Result := TStripeChargeList.Create;
+  AParams := TStringList.Create;
+  try
+    AParams.Values['limit'] := IntToStr(100);
+    AResult := GetHttp(C_CHARGES, AParams);
+    AJson := TDGJsonObject.Parse(AResult) as TDGJsonObject;
+    try
+      Result.LoadFromJson(AJson);
+    finally
+      AJson.Free;
+    end;
+  finally
+    AParams.Free;
+  end;
+end;
+
+function TStripe.GetCheckoutSession(ASessionID: string): TDGJsonObject;
+var
+  AData: string;
+begin
+  AData := GetHttp('checkout/sessions/'+ASessionID, nil);
+  Result := TDGJsonObject.Parse(AData) as TDGJsonObject;
+end;
+
+function TStripe.GetCustomer(ACustID: string): IStripeCustomer;
+var
+  AResult: string;
+  AJson: TDGJsonObject;
+begin
+  Result := TStripeCustomer.Create;
+  AResult := GetHttp(C_CUSTOMERS+'/'+ACustID, nil);
+  AJson := TDGJsonObject.Parse(AResult) as TDGJsonObject;
+  try
+    CheckForError(AJson);
+    if FLastError <> '' then
+    begin
+      Result.Clear;
+      Exit;
+    end;
+    if AJson.S['deleted'] = 'true' then
+    begin
+      Result.Clear;
+      Exit;
+    end;
+    Result.LoadFromJson(AJson);
+  finally
+    AJson.Free;
+  end;
+end;
+
+procedure TStripe.GetCustomer(ACustID: string; AJson: TDGJsonObject);
+var
+  AData: string;
+begin
+  AData := GetHttp(C_CUSTOMERS+'/'+ACustID, nil);
+  AJson.FromJSON(AData);
+end;
+function TStripe.GetCustomers(const ACreatedAfter: TDateTime = -1;
+                              const ACreatedBefore: TDateTime = -1;
+                              const ALimit: Integer = 10): IStripeCustomerList;
+var
+  AResult: string;
+  AJson: TDGJsonObject;
+  AParams: TStrings;
+begin
+  AParams := TStringList.Create;
+  try
+    if ACreatedAfter > -1 then AParams.Values['created[gt]'] := IntToStr(DateTimeToUnix(ACreatedAfter));
+    if ACreatedBefore > -1 then AParams.Values['created[lt]'] := IntToStr(DateTimeToUnix(ACreatedBefore));
+    AParams.Values['limit'] := IntToStr(ALimit);
+    Result := TStripeCustomerList.Create;
+    AResult := GetHttp(C_CUSTOMERS, AParams);
+    AJson := TDGJsonObject.Parse(AResult) as TDGJsonObject;
+    try
+      Result.LoadFromJson(AJson);
+    finally
+      AJson.Free;
+    end;
+  finally
+    AParams.Free;
+  end;
+end;
+
+function TStripe.GetHttp(AMethod: string; AParams: TStrings): string;
+  function ParamsToUrl(AStrings: TStrings): string;
+  var
+    ICount: integer;
+  begin
+    Result := '';
+    for ICount := 0 to AStrings.Count-1 do
+    begin
+      Result := Result + AStrings[ICount];
+      if ICount < AStrings.Count-1 then
+        Result := Result + '&';
+    end;
+  end;
+var
+  AHttp: TNetHTTPClient;
+  AResponse: IHTTPResponse;
+  AUrl: string;
+begin
+  AHttp := CreateHttp;
+  try
+    AUrl := 'https://api.stripe.com/v1/'+AMethod;
+    if AParams <> nil then
+    begin
+      if AParams.Count > 0 then
+        AUrl := AUrl + '?'+ParamsToUrl(AParams);
+    end;
+    AHttp.CustomHeaders['Authorization'] := 'Bearer '+FSecretKey;
+    AResponse := AHttp.Get(AUrl);
+    Result := AResponse.ContentAsString;
+    FLastJsonResult := Result;
+  finally
+    AHttp.Free;
+  end;
+end;
+
+procedure TStripe.GetInvoice(AInvID: string; AJson: TDGJsonObject);
+var
+  AData: string;
+begin
+  AData := GetHttp(C_INVOICES+'/'+AInvID, nil);
+  AJson.FromJSON(AData);
+end;
+
+function TStripe.GetLastError: string;
+begin
+  Result := FLastError;
+end;
+
+function TStripe.GetLastJsonResult: string;
+begin
+  Result := FLastJsonResult;
+end;
+
+function TStripe.GetPaymentIntent(APaymentIntentID: string): string;
+begin
+ Result := GetHttp('payment_intents/'+APaymentIntentID, nil);
+end;
+
+function TStripe.GetPaymentMethod(APaymentMethodID: string): string;
+begin
+ Result := GetHttp('payment_methods/'+APaymentMethodID, nil);
+end;
+
+function TStripe.GetPersons: string;
+begin
+ Result := GetHttp('accounts/acct_1Ehfk3C0L5u7blDo/persons', nil);
+end;
+
+function TStripe.GetSelfServiceUrl(ACustID, AReturnURL: string): string;
+var
+  AParams: TStrings;
+begin
+  AParams := TStringList.Create;
+  try
+    AParams.Values['customer'] := ACustID;
+    AParams.Values['return_url'] := AReturnURL;
+    Result := PostHttp('', 'billing_portal/sessions', AParams);
+  finally
+    AParams.Free;
+  end;
+end;
+
+function TStripe.GetSetupIntent(ASetupIntentID: string): TDGJsonObject;
+var
+  AData: string;
+begin
+  AData := GetHttp('setup_intents/'+ASetupIntentID, nil);
+  Result := TDGJsonObject.Parse(AData) as TDGJsonObject;
+end;
+
+function TStripe.PostHttp(AToken, AMethod: string; AParams: TStrings): string;
+var
+  AHttp: TNetHTTPClient;
+  AResponse: IHTTPResponse;
+begin
+  AHttp := CreateHttp;
+  try
+    if AToken <> '' then
+    begin
+      if Pos('pm_', AToken) = 1 then AParams.Values['source'] := AToken;
+      if Pos('tok_', AToken) = 1 then AParams.Values['source'] := AToken;
+      if Pos('cus_', AToken) = 1 then AParams.Values['customer'] := AToken;
+    end;
+    AHttp.CustomHeaders['Authorization'] := 'Bearer '+FSecretKey;
+    AResponse := AHttp.Post('https://api.stripe.com/v1/'+AMethod, AParams);
+    Result := AResponse.ContentAsString;
+    FLastJsonResult := Result;
+  finally
+    AHttp.Free;
+  end;
+end;
+
+function TStripe.RefundCharge(AChargeID: string): string;
+var
+  AParams: TStrings;
+begin
+  try
+    AParams := TStringList.Create;
+    try
+      if Pos('ch_', AChargeID.ToLower) = 1 then AParams.Values['charge'] := AChargeID;
+      if Pos('pi_', AChargeID.ToLower) = 1 then AParams.Values['payment_intent'] := AChargeID;
+      Result := PostHttp('', 'refunds', AParams);
+    finally
+      AParams.Free;
+    end;
+  except
+    on E:Exception do
+      Result := E.Message;
+  end;
+end;
+
+function TStripe.TestCredentials(var AError: string): Boolean;
+var
+  AData: string;
+  AJson: TDGJsonObject;
+begin
+  Result := True;
+  try
+    AError := '';
+    AData := GetHttp(C_BALANCE, nil);
+    AJson := TDGJsonObject.Parse(AData) as TDGJsonObject;
+    try
+      if AJson.Contains('error') then
+      begin
+        Result := False;
+        AError := AJson.O['error'].s['message'];
+      end
+    finally
+      AJson.Free;
+    end;
+  except
+    on E:Exception do
+    begin
+      AError := e.Message;
+      Result := False;
+    end;
+  end;
+end;
+
+procedure TStripe.UpdateCustomerValue(ACustID, AField, AValue: string);
+var
+  AParams: TStrings;
+  AResult: string;
+  AJson: TDGJsonObject;
+begin
+  AParams := TStringList.Create;
+  try
+    AParams.Values[AField] := AValue;
+    AResult := PostHttp('', C_CUSTOMERS+'/'+ACustID, AParams);
+    AJson := TDGJsonObject.Parse(AResult) as TDGJsonObject;
+    try
+      CheckForError(AJson);
+    finally
+      AJson.Free;
+    end;
+  finally
+    AParams.Free;
+  end;
+end;
+
+function TStripe.UpdateDefaultSource(ACustID, ACardID: string): Boolean;
+var
+  AParams: TStrings;
+begin
+  try
+    AParams := TStringList.Create;
+    try
+      AParams.Values['default_source'] := ACardID;
+      PostHttp('', 'customers/'+ACustID, AParams);
+      Result := True;
+    finally
+      AParams.Free;
+    end;
+  except
+    Result := False;
+  end;
+end;
+
+function TStripe.DeleteHttp(AMethod: string): string;
+var
+  AHttp: TNetHTTPClient;
+  AResponse: IHTTPResponse;
+begin
+  AHttp := CreateHttp;
+  try
+    AHttp.CustomHeaders['Authorization'] := 'Bearer '+FSecretKey;
+    AResponse := AHttp.Delete('https://api.stripe.com/v1/'+AMethod);
+    Result := AResponse.ContentAsString
+  finally
+    AHttp.Free;
+  end;
+end;
+
+function TStripe.CreateCustomer(AName, AEmail, ADescription, APaymentMethod: string): IStripeCustomer;
+var
+  AParams: TStrings;
+  AResult: string;
+  AJson: TDGJsonObject;
+begin
+  Result := TStripeCustomer.Create;
+  AParams := TStringList.Create;
+  try
+    if AName <> '' then AParams.Values['name'] := AName;
+    if AEmail <> '' then AParams.Values['email'] := AEmail;
+    if ADescription <> '' then AParams.Values['description'] := ADescription;
+    if APaymentMethod <> '' then AParams.Values['payment_method'] := APaymentMethod;
+    AResult := PostHttp('', C_CUSTOMERS, AParams);
+    AJson := TDGJsonObject.Parse(AResult) as TDGJsonObject;
+    try
+      CheckForError(AJson);
+      Result.LoadFromJson(AJson);
+    finally
+      AJson.Free;
+    end;
+  finally
+    AParams.Free;
+  end;
+end;
+
+procedure TStripe.NetHTTPClient1AuthEvent(const Sender: TObject;
+  AnAuthTarget: TAuthTargetType; const ARealm, AURL: string; var AUserName,
+  APassword: string; var AbortAuth: Boolean;
+  var Persistence: TAuthPersistenceType);
+begin
+  if AnAuthTarget = TAuthTargetType.Server then
+  begin
+    AUserName := FSecretKey;
+    APassword := '';
+  end;
+end;
+
+procedure TStripeCard.Clear;
+begin
+  inherited;
+  FBrand := '';
+  FLast4 := '';
+  FExpMonth := 0;
+  FExpYear := 0;
+end;
+
+function TStripeCard.GetBrand: string;
+begin
+  Result := FBrand;
+end;
+
+function TStripeCard.GetExpMonth: integer;
+begin
+  Result :=FExpMonth;
+end;
+
+function TStripeCard.GetExpYear: integer;
+begin
+  Result := FExpYear;
+end;
+
+function TStripeCard.GetLast4: string;
+begin
+  Result := FLast4;
+end;
+
+function TStripeCard.GetObject: string;
+begin
+  Result := C_CARD;
+end;
+
+procedure TStripeCard.LoadFromJson(AJson: TDGJsonObject);
+begin
+  inherited;
+  FBrand := AJson.S['brand'];
+  FLast4 := AJson.S['last4'];
+  FExpMonth := AJson.I['exp_month'];
+  FExpYear := AJson.I['exp_year'];
+end;
+
+procedure TStripeBaseObject.Clear;
+begin
+end;
+
+constructor TStripeBaseObject.Create;
+begin
+  FJson := TDGJsonObject.Create;
+  FId := '';
+end;
+
+destructor TStripeBaseObject.Destroy;
+begin
+  FJson.Free;
+  inherited;
+end;
+
+function TStripeBaseObject.GetAsJson: string;
+begin
+  Result := FJson.ToJSON;
+end;
+
+function TStripeBaseObject.GetID: string;
+begin
+  Result := FId;
+end;
+
+procedure TStripeBaseObject.LoadFromJson(AJson: TDGJsonObject);
+begin
+  FJson.Assign(AJson);
+  FId := FJson.S['id'];
+end;
+
+ procedure TStripeBaseObject.SetID(const Value: string);
+begin
+  FId := Value;
+end;
+
+procedure TStripeCustomer.Assign(ACustomer: IStripeCustomer);
+begin
+  inherited;
+  ID := ACustomer.ID;
+  Description := ACustomer.Description;
+  Email := ACustomer.Email;
+end;
+
+procedure TStripeCustomer.Clear;
+begin
+  inherited;
+  FEmail := '';
+  FDescription := '';
+  FName := '';
+end;
+
+function TStripeCustomer.GetDescription: string;
+begin
+  Result := FDescription;
+end;
+
+function TStripeCustomer.GetEmail: string;
+begin
+  Result := FEmail;
+end;
+
+function TStripeCustomer.GetName: string;
+begin
+  Result := FName;
+end;
+
+function TStripeCustomer.GetObject: string;
+begin
+  Result := C_CUSTOMER;
+end;
+
+procedure TStripeCustomer.LoadFromJson(AJson: TDGJsonObject);
+begin
+  inherited;
+  Clear;
+  if AJson.Types['description'] <> jdtObject then FDescription := AJson.S['description'];
+  if AJson.Types['email'] <> jdtObject then FEmail := AJson.S['email'];
+  if AJson.Types['name'] <> jdtObject then FName := AJson.S['name'];
+end;
+
+procedure TStripeCustomer.SetDescription(const Value: string);
+begin
+  FDescription := Value;
+end;
+
+procedure TStripeCustomer.SetEmail(const Value: string);
+begin
+  FEmail := Value;
+end;
+
+procedure TStripeCustomer.SetName(const Value: string);
+begin
+  FName := Value;
+end;
+
+function TStripePlan.GetAmountPence: integer;
+begin
+  Result := FAmountPence;
+end;
+
+function TStripePlan.GetCreated: TDateTime;
+begin
+  Result := FCreated;
+end;
+
+function TStripePlan.GetCurrency: string;
+begin
+  Result := FCurrency;
+end;
+
+function TStripePlan.GetInterval: string;
+begin
+  Result := FInterval;
+end;
+
+function TStripePlan.GetIntervalCount: integer;
+begin
+  Result := FIntervalCount;
+end;
+
+function TStripePlan.GetName: string;
+begin
+  Result := FName;
+end;
+
+function TStripePlan.GetObject: string;
+begin
+  Result := C_PLAN;
+end;
+
+function TStripePlan.GetStatementDescriptor: string;
+begin
+  Result := FStatementDescriptor;
+end;
+
+function TStripePlan.GetTrialPeriodDays: integer;
+begin
+  Result := FTrialPeriodDays;
+end;
+
+procedure TStripePlan.LoadFromJson(AJson: TDGJsonObject);
+begin
+  inherited;
+  FInterval := AJson.S['interval'];
+  FName := AJson.S['name'];
+  FCreated := UnixToDateTime(StrToInt(AJson.S['created']));
+  FAmountPence := StrToIntDef(AJson.S['amount'], 0);
+  FCurrency :=  AJson.S['currency'];
+  FIntervalCount := StrToIntDef(AJson.S['interval_count'], 0);
+  FTrialPeriodDays := StrToIntDef(AJson.S['trial_period_days'], 0);
+  FStatementDescriptor := AJson.S['statement_descriptor'];
+end;
+
+constructor TStripeSubscription.Create;
+begin
+  inherited;
+  FPlan := TStripePlan.Create;
+end;
+
+function TStripeSubscription.GetCancelledAt: TDateTime;
+begin
+  Result := FCancelledAt;
+end;
+
+function TStripeSubscription.GetCurrentPeriodEnd: TDateTime;
+begin
+  Result := FCurrentPeriodEnd;
+end;
+
+function TStripeSubscription.GetCurrentPeriodStart: TDateTime;
+begin
+  Result := FCurrentPeriodStart;
+end;
+
+function TStripeSubscription.GetCustomer: string;
+begin
+  Result := FCustomer;
+end;
+
+function TStripeSubscription.GetEndedAt: TDateTime;
+begin
+  Result := FEndedAt;
+end;
+
+function TStripeSubscription.GetObject: string;
+begin
+  Result := C_SUBSCRIPTION;
+end;
+
+function TStripeSubscription.GetPlan: IStripePlan;
+begin
+  Result := FPlan;
+end;
+
+function TStripeSubscription.GetQuantity: integer;
+begin
+  Result := FQuantity;
+end;
+
+function TStripeSubscription.GetStart: TDateTime;
+begin
+  Result := FStart;
+end;
+
+function TStripeSubscription.GetStatus: string;
+begin
+  Result := FStatus;
+end;
+
+function TStripeSubscription.GetTaxPercent: single;
+begin
+  Result := FTaxPercent;
+end;
+
+function TStripeSubscription.GetTrialEnd: TDateTime;
+begin
+  Result := FTrialEnd;
+end;
+
+function TStripeSubscription.GetTrialStart: TDateTime;
+begin
+  Result := FTrialStart;
+end;
+
+procedure TStripeSubscription.LoadFromJson(AJson: TDGJsonObject);
+begin
+  inherited;
+  FPlan.LoadFromJson(AJson.O['plan']);
+  FStatus := AJson.S['status'];
+end;
+
+function TStripeBaseObjectList<T>.AddObject: T;
+begin
+  Result := CreateObject;
+  FItems.Add(Result);
+end;
+
+procedure TStripeBaseObjectList<T>.Clear;
+begin
+  FItems.Clear;
+end;
+
+constructor TStripeBaseObjectList<T>.Create;
+begin
+  FItems := TList<T>.Create;
+end;
+
+destructor TStripeBaseObjectList<T>.Destroy;
+begin
+  FItems.Free;
+  inherited;
+end;
+
+function TStripeBaseObjectList<T>.GetCount: integer;
+begin
+  Result := FItems.Count;
+end;
+
+function TStripeBaseObjectList<T>.GetItem(index: integer): T;
+begin
+  Result := FItems[index];
+end;
+
+function TStripeCustomerList.CreateObject: IStripeCustomer;
+begin
+  Result := TStripeCustomer.Create;
+end;
+
+function TStripeCustomerList.GetListID: string;
+begin
+  Result := C_CUSTOMERS;
+end;
+
+procedure TStripeCustomerList.LoadFromJson(AJson: TDGJsonObject);
+var
+  AArray: TDGJsonArray;
+  ICount: integer;
+begin
+  Clear;
+  if AJson = nil then
+    Exit;
+  AArray := AJson.A['data'];
+  for ICount := 0 to AArray.Count-1 do
+  begin
+    AddObject.LoadFromJson(AArray.O[ICount]);
+  end;
+end;
+
+procedure TStripeCharge.Clear;
+begin
+  inherited;
+  FCreated := 0;
+  FDesc := '';
+  FLiveMode := False;
+  FPaid := False;
+  FStatus := '';
+  FAmountPence := 0;
+  FCurrency := 'USD';
+  FRefunded := False;
+  FCustomer := '';
+  FCard.Clear;
+end;
+
+constructor TStripeCharge.Create;
+begin
+  inherited;
+  FCard := TStripeCard.Create;
+end;
+
+function TStripeCharge.GetAmountPence: integer;
+begin
+  Result := FAmountPence;
+end;
+
+function TStripeCharge.GetCurrency: string;
+begin
+  Result := FCurrency;
+end;
+
+function TStripeCharge.GetCustomer: string;
+begin
+  Result := FCustomer;
+end;
+
+function TStripeCharge.GetDesc: string;
+begin
+  Result := FDesc;
+end;
+
+function TStripeCharge.GetCard: IStripeCard;
+begin
+  Result := FCard;
+end;
+
+function TStripeCharge.GetCreated: TDatetime;
+begin
+  Result := FCreated;
+end;
+
+function TStripeCharge.GetLiveMode: Boolean;
+begin
+  Result := FLiveMode;
+end;
+
+function TStripeCharge.GetObject: string;
+begin
+  Result := C_CHARGE;
+end;
+
+function TStripeCharge.GetPaid: Boolean;
+begin
+  Result := FPaid;
+end;
+
+function TStripeCharge.GetRefunded: Boolean;
+begin
+  Result := FRefunded;
+end;
+
+function TStripeCharge.GetStatus: string;
+begin
+  Result := FStatus;
+end;
+
+procedure TStripeCharge.LoadFromJson(AJson: TDGJsonObject);
+begin
+  inherited;
+  Clear;
+  FCard := TStripeCard.Create;
+  FCreated := UnixToDateTime(AJson.I['created']);
+  FLiveMode := AJson.S['livemode'] = 'true';
+  FPaid := AJson.S['paid'] = 'true';
+  FStatus := AJson.S['status'];
+  FAmountPence := StrToIntDef(AJson.S['amount'], 0);
+  FCurrency := AJson.S['currency'];
+  FRefunded := AJson.S['refunded'] = 'true';
+  if not AJson.IsNull('customer') then
+    FCustomer := AJson.S['customer']
+  else
+    FCustomer := '';
+  if AJson.Types['description'] = jdtString then FDesc := AJson.S['description'];
+  if AJson.O['payment_method_details'] <> nil then
+  begin
+    if AJson.O['payment_method_details'].O['card'] <> nil then
+      FCard.LoadFromJson(AJson.O['payment_method_details'].O['card']);
+  end;
+end;
+
+function TStripeChargeList.CreateObject: IStripeCharge;
+begin
+  Result := TStripeCharge.Create;
+end;
+
+function TStripeChargeList.GetListID: string;
+begin
+  Result := C_CHARGES;
+end;
+
+procedure TStripeChargeList.LoadFromJson(AJson: TDGJsonObject);
+var
+  AArray: TDGJsonArray;
+  ICount: integer;
+begin
+  Clear;
+  if AJson = nil then
+    Exit;
+  AArray := AJson.A['data'];
+  for ICount := 0 to AArray.Count-1 do
+  begin
+    AddObject.LoadFromJson(AArray.O[ICount]);
+  end;
+end;
+
+{$ENDREGION}
 
 {$REGION ' DelphiGamekit.Deps.LuaJIT '}
 procedure GetLuaExports(const aDLLHandle: Pointer);
@@ -28687,6 +30292,104 @@ begin
   Result:= FResponseText;
 end;
 
+constructor TInAppPurchase.Create;
+begin
+  inherited;
+
+  FError := '';
+  FStatus := '';
+  FDescription := '';
+  FId := '';
+  FAmount := '';
+  FCurrency := '';
+end;
+
+destructor TInAppPurchase.Destroy;
+begin
+  inherited;
+end;
+
+function  TInAppPurchase.Busy: Boolean;
+begin
+  Result := FBusy;
+end;
+
+procedure TInAppPurchase.Buy(const aKey, aDescription: string; aAmount: Single; const aCurrency: string; const aCardNum: string; aExpMonth: Integer; aExpYear: Integer; aCvc: string);
+var
+  LStripe: IStripe;
+  LToken: string;
+  LCharge: IStripeCharge;
+  LAmount: Integer;
+begin
+  if FBusy then Exit;
+
+  if aKey = '' then Exit;
+  if aAmount < 0.50 then Exit;
+  if aCurrency = '' then Exit;
+  if aCardNum = '' then Exit;
+  if not InRange(aExpMonth, 1, 12) then Exit;
+  if aExpYear < CurrentYear then Exit;
+  if aCvc = '' then Exit;
+
+  Game.Async.Run(
+    'TInAppPurchase',
+    procedure
+    begin
+      FBusy := True;
+      FStatus := '';
+      FDescription := '';
+      FId := '';
+      FAmount := '';
+      FCurrency := '';
+      LAmount := Trunc(aAmount * 100);
+      LStripe := CreateStripe(aKey);
+      LToken := LStripe.CreateToken(aCardNum, aExpMonth, aExpYear, aCvc);
+      LCharge := LStripe.CreateCharge(LToken, aDescription, LAmount.ToString, nil, FError, aCurrency);
+    end,
+    procedure
+    begin
+      FStatus := LCharge.Status;
+      FDescription := LCharge.Desc;
+      FId := LCharge.ID;
+      FAmount := (LCharge.AmountPence / 100).ToString;
+      FCurrency := LCharge.Currency;
+      Game.OnInAppPurchase(Self);
+      FBusy := False;
+    end
+  );
+
+end;
+
+function TInAppPurchase.GetLastError: string;
+begin
+  Result := FError;
+end;
+
+function TInAppPurchase.GetStatus: string;
+begin
+  Result := FStatus;
+end;
+
+function TInAppPurchase.GetDescription: string;
+begin
+  Result := FDescription;
+end;
+
+function TInAppPurchase.GetId: string;
+begin
+  Result := FId;
+end;
+
+function TInAppPurchase.GetAmount: string;
+begin
+  Result := FAmount;
+end;
+
+function TInAppPurchase.GetCurrency: string;
+begin
+  Result := FCurrency;
+end;
+
 function HttpGet(const aURL: string; const aStatus: PString=nil): string;
 var
   LHttp: THTTPClient;
@@ -32570,6 +34273,10 @@ begin
 end;
 
 procedure TGame.OnPostLuaReset;
+begin
+end;
+
+procedure TGame.OnInAppPurchase(aPurchase: TInAppPurchase);
 begin
 end;
 

@@ -41,11 +41,13 @@ if you wish to learn more about the Delphi language visit <a href="https://learn
 - **Actor** (high level game object that can persist in the game world)
 - **ActorScene** (multiple layers that actors exist on in the game world)
 - **ConfigFile** (INI based configuration file management)
+- **Scripting** (LuaJIT, easy interop between Lua and Delphi,  register variables, routines, etc.)
+- **In App Purchase** (easily do in app purchase directly within app, powered by Stripe.com)
 - **Misc** (collision, easing, screenshot, colors, logging and other useful utility routines)
 - And more. See `DelphiGamekit.pas` in `installdir\sources` and the docs in `installdir\docs` for more information about features.
 
 ## Minimum System Requirements
-- Delphi 10.4, win64 platform
+- Delphi 10.4, Win64 platform
 - Microsoft Windows 10, 64 bits
 - Direct3D 9
 
