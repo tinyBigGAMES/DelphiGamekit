@@ -139,6 +139,17 @@ uses
   WinApi.ShellAPI,
   Winapi.ActiveX,
   System.Net.HttpClientComponent,
+  IdGlobal,
+  IdSMTP,
+  IdMessage,
+  IdReplySMTP,
+  IdSSLOpenSSL,
+  IdText,
+  IdAttachment,
+  IdAttachmentFile,
+  IdAttachmentMemory,
+  IdExplicitTLSClientServerBase,
+  IdHTTP,
   DelphiGamekit.Json;
 {$ENDREGION}
 
@@ -14267,6 +14278,23 @@ type
     procedure PostToAccount(const aAccountId, aMsg: string; const aMediaFilename: string='');
   end;
 
+type
+  TEmail = class(TBaseObject)
+  protected
+    FSmtp: TIdSMTP;
+    FSSLHandler: TIdSSLIOHandlerSocketOpenSSL;
+    FLastError: string;
+    FBusy: Boolean;
+    procedure DoSend(const aFromEmail, aFromName, aSubject, aTo, aCC, aBC, aReplyTo, aBody: string);
+  public
+    property Busy: Boolean read FBusy;
+    property LastError: string read FLastError;
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure Setup(const aHost: string; aPort: Word; const aUsername: string; const aPassword: string);
+    procedure Send(const aFromEmail, aFromName, aSubject, aTo, aCC, aBC, aReplyTo, aBody: string);
+  end;
+
 function  HttpGet(const aURL: string; const aStatus: PString=nil): string;
 
 {$ENDREGION}
@@ -14838,6 +14866,8 @@ type
     procedure OnPostLuaReset; virtual;
     procedure OnInAppPurchase(aPurchase: TInAppPurchase); virtual;
     procedure OnSocialPost(const aSuccess: Boolean; const aErrorMsg, aMsg, aMediaFilename: string); virtual;
+    procedure OnSendMail(const aFromEmail, aFromName, aSubject, aTo, aCC, aBC, aReplyTo, aBody, aError: string); virtual;
+
   end;
 
   TGameClass = class of TGame;
@@ -30566,6 +30596,103 @@ begin
   );
 end;
 
+procedure TEmail.DoSend(const aFromEmail, aFromName, aSubject, aTo, aCC, aBC, aReplyTo, aBody: string);
+var
+  LEmail: string;
+  LMsg : TIdMessage;
+  LBody : TIdText;
+begin
+  LMsg := TIdMessage.Create;
+  try
+    LMsg.From.Address := aFromEmail;
+    LMsg.From.Name := aFromName;
+    LMsg.Subject := aSubject;
+    for LEmail in aTo.Split([',',';']) do LMsg.Recipients.Add.Address := LEmail;
+    for LEmail in aCC.Split([',',';']) do LMsg.CCList.Add.Address := LEmail;
+    for LEmail in aBC.Split([',',';']) do LMsg.BCCList.Add.Address := LEmail;
+    for LEmail in aReplyTo.Split([',',';']) do LMsg.ReplyTo.Add.Address := LEmail;
+    LBody := TIdText.Create(LMsg.MessageParts);
+    try
+      LBody.ContentType := 'text/html';
+      LBody.CharSet:= 'utf-8';
+      LBody.Body.Text := aBody;
+
+      try
+        FSmtp.Connect;
+        if FSmtp.Connected then
+        begin
+          FSmtp.Send(LMsg);
+          FSmtp.Disconnect(False);
+        end;
+      except
+        on E: Exception do
+          FLastError := E.Message;
+      end;
+
+    finally
+      FreeAndNil(LBody);
+    end;
+  finally
+    FreeAndNil(LMsg);
+  end;
+end;
+
+constructor TEmail.Create;
+begin
+  inherited;
+  FSmtp := TIdSMTP.Create;
+  FSSLHandler := TIdSSLIOHandlerSocketOpenSSL.Create;
+  FSmtp.IOHandler := FSSLHandler;
+  FSmtp.Port := 465;
+  FSSLHandler.MaxLineAction := maException;
+  FSSLHandler.SSLOptions.Method := sslvTLSv1_2;
+  FSSLHandler.SSLOptions.Mode := sslmUnassigned;
+  FSSLHandler.SSLOptions.VerifyMode := [];
+  FSSLHandler.SSLOptions.VerifyDepth := 0;
+  FSmtp.UseTLS := utUseImplicitTLS;
+  FSmtp.AuthType := TIdSMTPAuthenticationType.satDefault;
+end;
+
+destructor TEmail.Destroy;
+begin
+  FreeAndNil(FSSLHandler);
+  FreeAndNil(FSmtp);
+  inherited;
+end;
+
+procedure TEmail.Setup(const aHost: string; aPort: Word; const aUsername: string; const aPassword: string);
+begin
+  FSmtp.Host := aHost;
+  FSmtp.Port := aPort;
+  FSmtp.Username := aUsername;
+  FSmtp.Password := aPassword;
+  if FSmtp.Port = 465 then
+    FSmtp.UseTLS := utUseImplicitTLS
+  else
+    FSmtp.UseTLS := utUseExplicitTLS;
+end;
+
+procedure TEmail.Send(const aFromEmail, aFromName, aSubject, aTo, aCC, aBC, aReplyTo, aBody: string);
+begin
+  if FBusy then Exit;
+
+  FLastError := '';
+
+  Game.Async.Run(
+    'TEmail',
+    procedure
+    begin
+      FBusy := True;
+      DoSend(aFromEmail, aFromName, aSubject, aTo, aCC, aBC, aReplyTo, aBody);
+    end,
+    procedure
+    begin
+      Game.OnSendMail(aFromEmail, aFromName, aSubject, aTo, aCC, aBC, aReplyTo, aBody, FLastError);
+      FBusy := False;
+    end
+  );
+end;
+
 function HttpGet(const aURL: string; const aStatus: PString=nil): string;
 var
   LHttp: THTTPClient;
@@ -34457,6 +34584,10 @@ begin
 end;
 
 procedure TGame.OnSocialPost(const aSuccess: Boolean; const aErrorMsg, aMsg, aMediaFilename: string);
+begin
+end;
+
+procedure TGame.OnSendMail(const aFromEmail, aFromName, aSubject, aTo, aCC, aBC, aReplyTo, aBody, aError: string);
 begin
 end;
 
