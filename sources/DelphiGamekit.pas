@@ -124,6 +124,7 @@ uses
   System.Net.HttpClient,
   System.NetEncoding,
   System.Net.URLClient,
+  System.Net.Mime,
   System.Variants,
   System.ZLib,
   System.Zip,
@@ -14246,6 +14247,26 @@ type
     function GetCurrency: string;
   end;
 
+type
+  TSocial = class(TBaseObject)
+  protected type
+    TPostType = (ptAccount);
+  protected
+    FApiKey: string;
+    FMediaFilename: string;
+    FBusy: Boolean;
+    FError: string;
+    FSuccess: Boolean;
+    procedure DoPost(aType: TPostType; aId: string; const aMsg: string; const aMediaFilename: string='');
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+    function  Busy: Boolean;
+    procedure Setup(const aApiKey: string);
+    procedure SaveAccounts(const aFilename: string);
+    procedure PostToAccount(const aAccountId, aMsg: string; const aMediaFilename: string='');
+  end;
+
 function  HttpGet(const aURL: string; const aStatus: PString=nil): string;
 
 {$ENDREGION}
@@ -14816,6 +14837,7 @@ type
     procedure OnPreLuaReset; virtual;
     procedure OnPostLuaReset; virtual;
     procedure OnInAppPurchase(aPurchase: TInAppPurchase); virtual;
+    procedure OnSocialPost(const aSuccess: Boolean; const aErrorMsg, aMsg, aMediaFilename: string); virtual;
   end;
 
   TGameClass = class of TGame;
@@ -30390,6 +30412,160 @@ begin
   Result := FCurrency;
 end;
 
+procedure TSocial.DoPost(aType: TPostType; aId: string; const aMsg: string; const aMediaFilename: string);
+const   //postToRoute
+  cUrl: array[ptAccount .. ptAccount] of string = ('https://api.dlvrit.com/1/postToAccount.json');
+var
+  LFormData: TMultipartFormData;
+  LHttpClient: THTTPClient;
+  LString: string;
+  LJson: TDGJsonObject;
+begin
+  if FApiKey.IsEmpty then Exit;
+  if aId.IsEmpty then Exit;
+  if aMsg.IsEmpty then Exit;
+
+  FMediaFilename := '';
+  FSuccess := False;
+  FError := '';
+
+  if not aMediaFilename.IsEmpty then
+  begin
+    if TFile.Exists(aMediaFilename) then
+      FMediaFilename := aMediaFilename
+  end;
+
+  LFormData := TMultipartFormData.Create;
+  try
+    LHttpClient := THTTPClient.Create;
+    try
+      LFormData.AddField('key', FApiKey);
+      LFormData.AddField('id', aId);
+      LFormData.AddField('msg', aMsg);
+      if not FMediaFilename.IsEmpty then
+        LFormData.AddFile('media', FMediaFilename);
+      LString := LHttpClient.Post(cUrl[aType], LFormData).ContentAsString;
+      LJson := TDGJsonObject.Parse(LString) as TDGJsonObject;
+      try
+        if LJson.Contains('errors') then
+          FError :=  LJson.O['errors'].Items[0].Value
+        else
+          FSuccess := True;
+      finally
+        FreeAndNil(LJson);
+      end;
+    finally
+      FreeAndNil(LHttpClient);
+    end;
+  finally
+    FreeAndNil(LFormData);
+  end;
+end;
+
+constructor TSocial.Create;
+begin
+  inherited;
+
+  FApiKey := '';
+  FMediaFilename := '';
+  FBusy := False;
+  FError := '';
+  FSuccess := False;
+end;
+
+destructor TSocial.Destroy;
+begin
+  inherited;
+end;
+
+function  TSocial.Busy: Boolean;
+begin
+  Result := FBusy;
+end;
+
+procedure TSocial.Setup(const aApiKey: string);
+begin
+  FApiKey := aApiKey;
+  FBusy := False;
+end;
+
+procedure TSocial.SaveAccounts(const aFilename: string);
+var
+  LFormData: TMultipartFormData;
+  LHttpClient: THTTPClient;
+  LString: string;
+  LJson: TDGJsonObject;
+  LIndex,LCount: Integer;
+  LFile: TStringList;
+begin
+  if FApiKey.IsEmpty then Exit;
+  if aFilename = '' then Exit;
+
+  LFile := TStringList.Create;
+  try
+    LFormData := TMultipartFormData.Create;
+    try
+      LHttpClient := THTTPClient.Create;
+      try
+        LFormData.AddField('key', FApiKey);
+        LString := LHttpClient.Post('https://api.dlvrit.com/1/accounts.json', LFormData).ContentAsString;
+        LJson := TDGJsonObject.Parse(LString) as TDGJsonObject;
+        try
+          if LJson.Contains('errors') then Exit;
+          LCount := LJson.A['accounts'].Count;
+          for LIndex := 0 to LCount-1 do
+          begin
+            LString := Format(
+              'account id="%s", name="%s", service="%s", url="%s"',
+              [
+              LJson.A['accounts'].Values[LIndex].S['id'],
+              LJson.A['accounts'].Values[LIndex].S['name'],
+              LJson.A['accounts'].Values[LIndex].S['service'],
+              LJson.A['accounts'].Values[LIndex].S['url']
+              ]
+            );
+            LFile.Add(LString);
+          end;
+          LFile.SaveToFile(aFilename);
+
+        finally
+          FreeAndNil(LJson);
+        end;
+      finally
+        FreeAndNil(LHttpClient);
+      end;
+    finally
+      FreeAndNil(LFormData);
+    end;
+  finally
+    FreeAndNil(LFile);
+  end;
+end;
+
+procedure TSocial.PostToAccount(const aAccountId, aMsg: string; const aMediaFilename: string);
+begin
+  if FBusy then Exit;
+  if FApiKey.IsEmpty then Exit;
+  if aAccountId = '' then Exit;
+  if aMsg = '' then Exit;
+
+  Game.Async.Run(
+    'TSocial',
+    procedure
+    begin
+      FBusy := True;
+      FError := '';
+      FSuccess := False;
+      DoPost(ptAccount, aAccountId, aMsg, aMediaFilename);
+    end,
+    procedure
+    begin
+      Game.OnSocialPost(FSuccess, FError, aMsg, aMediaFilename);
+      FBusy := False;
+    end
+  );
+end;
+
 function HttpGet(const aURL: string; const aStatus: PString=nil): string;
 var
   LHttp: THTTPClient;
@@ -34277,6 +34453,10 @@ begin
 end;
 
 procedure TGame.OnInAppPurchase(aPurchase: TInAppPurchase);
+begin
+end;
+
+procedure TGame.OnSocialPost(const aSuccess: Boolean; const aErrorMsg, aMsg, aMediaFilename: string);
 begin
 end;
 
