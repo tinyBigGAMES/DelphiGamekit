@@ -6,7 +6,7 @@
 ## Overview
 DelphiGamekit&trade; is a professional indie game toolkit that allows you to do 2D game development in <a href="https://www.embarcadero.com/products/delphi" target="_blank"> Embarcadero Delphi®</a> for desktop PC's running Microsoft Windows® and uses Direct3D® for hardware accelerated rendering.
 
-It's robust, designed for easy use and suitable for making all types of 2D games and other graphic simulations, You access the features from a simple and intuitive API, to allow you to rapidly and efficiently develop your projects. There is support for textures, audio samples, streaming music, video playback, loading resources directly from a compressed and encrypted archive, a thin object oriented actor/scene system, collision detection and much more. DelphiGamekit, easy, fast & fun!
+It's robust, designed for easy use and suitable for making all types of 2D games and other graphic simulations. You access the features from a simple and intuitive API, to allow you to develop your projects rapidly and efficiently. There is support for textures, audio samples, streaming music, video playback, loading resources directly from a compressed and encrypted archive, a thin object-oriented actor/scene system, collision detection and much more. DelphiGamekit, easy, fast & fun!
 
 Please star this repo by clicking the Star box in the top right corner if you find it useful!
 
