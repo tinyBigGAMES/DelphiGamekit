@@ -139,7 +139,6 @@ begin
   LViewport := Window.GetViewport;
   FViewWidth := LViewport.Width;
   FViewHeight := LViewport.Height;
-
   FMusic := Audio.LoadPlayMusic(Archive, 'arc/music/song04.ogg', 0.5, -1, True);
 end;
 
@@ -157,51 +156,40 @@ var
   LMousePos: TPoint;
 begin
   inherited;
-
   if not Timer.FrameSpeed(FTimer, Settings.TimerUpdateRate) then Exit;
-
   Input.GetMouseInfo(@LMousePos, nil);
-
   FBead[0].X := LMousePos.X;
   FBead[0].Y := LMousePos.Y;
-
   if FBead[0].X - (cBeadSize+10)/2<0 then
   begin
    FBead[0].X := (cBeadSize+10)/2;
   end;
-
   if FBead[0].X + ((cBeadSize+10)/2) >FViewWidth then
   begin
    FBead[0].X := FViewWidth - (cBeadSize+10)/2;
   end;
-
   if FBead[0].Y - ((cBeadSize+10)/2) < 0 then
   begin
    FBead[0].Y := (cBeadSize+10)/2;
   end;
-
   if FBead[0].Y + ((cBeadSize+10)/2) > FViewHeight then
   begin
    FBead[0].Y := FViewHeight - (cBeadSize+10)/2;
   end;
-
   // loop though other beads
   for i := 1 to cBeadCount do
   begin
     // calc X and Y distance between the bead and the one before it
     LDistX := FBead[i].X - FBead[i-1].X;
     LDistY := FBead[i].Y - FBead[i-1].Y;
-
     // calc total distance
     LDist := sqrt(LDistX*LDistX + LDistY * LDistY);
-
     // if the beads are far enough apart, decrease the movement to create elasticity
     if LDist > cSlackness then
     begin
        FBead[i].XMove := FBead[i].XMove - (cXElasticity * LDistX);
        FBead[i].YMove := FBead[i].YMove - (cYElasticity * LDistY);
     end;
-
     // if bead is not last bead
     if i <> cBeadCount then
     begin
@@ -209,7 +197,6 @@ begin
        LDistX := FBead[i].X - FBead[i+1].X;
        LDistY := FBead[i].Y - FBead[i+1].Y;
        LDist  := sqrt(LDistX*LDistX + LDistY*LDistY);
-
        // if beads are far enough apart, decrease the movement to create elasticity
        if LDist > 1 then
        begin
@@ -217,44 +204,36 @@ begin
           FBead[i].YMove := FBead[i].YMove - (cYElasticity * LDistY);
        end;
     end;
-
     // decay the movement of the beads to simulate loss of energy
     FBead[i].XMove := FBead[i].XMove * cXDecay;
     FBead[i].YMove := FBead[i].YMove * cYDecay;
-
     // apply cGravity to bead movement
     FBead[i].YMove := FBead[i].YMove + cGravity;
-
     // move beads
     FBead[i].X := FBead[i].X + FBead[i].XMove;
     FBead[i].Y := FBead[i].Y + FBead[i].YMove;
-
     // ff the beads hit a wall, make them bounce off of it
     if FBead[i].X - ((cBeadSize + 10 ) / 2) < 0 then
     begin
        FBead[i].X     :=  FBead[i].X     + (cBeadSize+10)/2;
        FBead[i].XMove := -FBead[i].XMove * cWallDecay;
     end;
-
     if FBead[i].X + ((cBeadSize+10)/2) > FViewWidth then
     begin
        FBead[i].X     := FViewWidth - (cBeadSize+10)/2;
        FBead[i].xMove := -FBead[i].XMove * cWallDecay;
     end;
-
     if FBead[i].Y - ((cBeadSize+10)/2) < 0 then
     begin
        FBead[i].YMove := -FBead[i].YMove * cWallDecay;
        FBead[i].Y     :=(cBeadSize+10)/2;
     end;
-
     if FBead[i].Y + ((cBeadSize+10)/2) > FViewHeight then
     begin
        FBead[i].YMove := -FBead[i].YMove * cWallDecay;
        FBead[i].Y     := FViewHeight - (cBeadSize+10)/2;
     end;
   end;
-
 end;
 
 procedure TExample.OnRender;
@@ -262,21 +241,18 @@ var
   I: Integer;
 begin
   inherited;
-
   // draw last bead
-  Window.DrawFilledRect(FBead[0].X, FBead[0].Y, cBeadSize, cBeadSize, GREEN);
-
+  Window.DrawFilledRect(FBead[0].X, FBead[0].Y, cBeadSize, cBeadSize, GREEN, bmBlend);
   // loop though other beads
   for I := 1 to cBeadCount do
   begin
     // draw bead and string from it to the one before it
     Window.DrawLine(FBead[i].x+cBedHalfSize,
       FBead[i].y+cBedHalfSize, FBead[i-1].x+cBedHalfSize,
-      FBead[i-1].y+cBedHalfSize, YELLOW);
+      FBead[i-1].y+cBedHalfSize, YELLOW, bmBlend);
     Window.DrawFilledRect(FBead[i].X, FBead[i].Y, cBeadSize,
-     cBeadSize, GREEN);
+     cBeadSize, GREEN, bmBlend);
   end;
-
 end;
 
 procedure TExample.OnRenderHud;
@@ -286,3 +262,4 @@ begin
 end;
 
 end.
+

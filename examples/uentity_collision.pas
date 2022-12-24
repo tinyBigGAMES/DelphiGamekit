@@ -170,7 +170,7 @@ begin
   FFigure.Render(0, 0);
   FBoss.Render(0, 0);
   if FCollide then
-    Window.DrawFilledRect(FHitPos.X, FHitPos.Y, 10, 10, RED);
+    Window.DrawFilledRect(FHitPos.X, FHitPos.Y, 10, 10, RED, bmBlend);
 end;
 
 procedure TExample.OnRenderHud;

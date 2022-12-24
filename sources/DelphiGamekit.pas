@@ -12767,6 +12767,9 @@ const
   CRLF = CR+LF;
 
 type
+  TBlendMode = (bmNone=0, bmBlend=1, bmAdd=2, bmMod=4, bmMul=8, bmInvalid=2147483647);
+
+type
   TBaseObject = class
   public
     constructor Create; virtual;
@@ -12923,8 +12926,7 @@ type
     class procedure Reset(aSpeed: Single=0; aFixedSpeed: Single=0); static;
     class procedure Update; static;
     class function  FrameSpeed(var aTimer: Single; aSpeed: Single): Boolean; static;
-    class function  FrameElapsed(var aTimer: Single; aFrames: Single): Boolean; static;
-    class function  Elapsed(var aTimer: Single; aSeconds: Single): Boolean; static;
+    class function  ElapsedTime(var aTimer: Single; aSeconds: Single): Boolean; static;
     class function  FrameRate: Cardinal; static;
   end;
 
@@ -13416,10 +13418,10 @@ type
     class function  GetHDPI: Single; static;
     class function  GetVDPI: Single; static;
     class function  GetRendererInfo: SDL_RendererInfo; static;
-    class procedure DrawPoint(const aX, aY: Single; const aColor: TColor); static;
-    class procedure DrawLine(const aX1, aY1, aX2, aY2: Single; const aColor: TColor); static;
-    class procedure DrawRect(const aX, aY, aWidth, aHeight: Single; const aColor: TColor); static;
-    class procedure DrawFilledRect(const aX, aY, aWidth, aHeight: Single; const aColor: TColor); static;
+    class procedure DrawPoint(const aX, aY: Single; const aColor: TColor; const aBlendMode: TBlendMode); static;
+    class procedure DrawLine(const aX1, aY1, aX2, aY2: Single; const aColor: TColor; const aBlendMode: TBlendMode); static;
+    class procedure DrawRect(const aX, aY, aWidth, aHeight: Single; const aColor: TColor; const aBlendMode: TBlendMode); static;
+    class procedure DrawFilledRect(const aX, aY, aWidth, aHeight: Single; const aColor: TColor; const aBlendMode: TBlendMode); static;
     class function  Save(const aFilename: string): Boolean; static;
   end;
 
@@ -13452,6 +13454,8 @@ type
   end;
 
 const
+  TEXTINPUT_MAXLEN = 255;
+
   BUTTON_LEFT   = 1;
   BUTTON_MIDDLE = 2;
   BUTTON_RIGHT  = 3;
@@ -13769,13 +13773,25 @@ type
     FMouse: TMouse;
     FController: TController;
     FIsOpen: Boolean;
+    FTextInput: string;
+    FMaxTextInput: Cardinal;
+    FEnableTextInput: Boolean;
   public
     class operator Initialize (out aDest: TInput);
     class operator Finalize (var aDest: TInput);
     class procedure Open; static;
     class procedure Close; static;
     class procedure Clear; static;
+    class procedure ClearKey(const aKey: Cardinal); static;
+    class procedure ClearTextInput; static;
+    class procedure ClearLastInputChar; static;
     class procedure Update(const aEvent: PSDL_Event); static;
+    class function  GetTextInput: string; static;
+    class procedure SetTextInput(const aText: string); static;
+    class procedure SetTextInputSize(const aSize: Cardinal); static;
+    class function  GetTextInputSize: Cardinal; static;
+    class function  GetEnableTextInput: Boolean; static;
+    class procedure SetEnableTextInput(const aEnable: Boolean); static;
     class function  KeyDown(const aKey: Cardinal): Boolean; static;
     class function  KeyPressed(const aKey: Cardinal): Boolean; static;
     class function  KeyReleased(const aKey: Cardinal): Boolean; static;
@@ -13845,7 +13861,6 @@ type
 
 type
   TFlipMode = (fmNone=0, fmHorizontal=1, fmVertical=2);
-  TBlendMode = (bmNone=0, bmBlend=1, bmAdd=2, bmMod=4, bmMul=8, bmInvalid=2147483647);
   TTextureAccess = (taStatic=0, taStreaming=1, taTarget=2);
 
   TTexture = class(TBaseObject)
@@ -13999,7 +14014,7 @@ type
     procedure CopyFrom(const aPolygon: TPolygon);
     procedure AddLocalPoint(const aX, aY: Single; const aVisible: Boolean);
     function  Transform(const aX, aY, aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PPoint): Boolean;
-    procedure Render(const aX, aY, aScale, aAngle, aWidth: Single; aColor: TColor; aFlipMode: TFlipMode; aOrigin: PPoint);
+    procedure Render(const aX, aY, aScale, aAngle, aWidth: Single; aColor: TColor; aFlipMode: TFlipMode; aOrigin: PPoint; const aBlendMode: TBlendMode);
     procedure SetSegmentVisible(const aIndex: Integer; const aVisible: Boolean);
     function  SegmentVisible(const aIndex: Integer): Boolean;
     function  PointCount: Integer;
@@ -14060,7 +14075,7 @@ type
     function  TraceFromTexture(const aTexture: TTexture; const aMju: Single; const aMaxStepBack, aAlphaThreshold: Integer; const aOrigin: PPoint): Integer;
     procedure TraceFromSprite(const aSprite: TSprite; const aGroup: Integer; const aMju: Single; const aMaxStepBack, aAlphaThreshold: Integer; const aOrigin: PPoint);
     function  Count: Integer;
-    procedure Render(const aNum: Integer; aX, aY, aScale, aAngle: Single; const aColor: TColor; const aFlipMode: TFlipMode; const aOrigin: PPoint);
+    procedure Render(const aNum: Integer; aX, aY, aScale, aAngle: Single; const aColor: TColor; const aFlipMode: TFlipMode; const aOrigin: PPoint; const aBlendMode: TBlendMode);
     function  Collide(const aNum1, aGroup1: Integer; const aX1, aY1, aScale1, aAngle1: Single; const aFlipMode1: TFlipMode; const aOrigin1: PPoint; const aPolyPoint2: TPolyPoint; const aNum2, aGroup2: Integer; const aX2, aY2, aScale2, aAngle2: Single; const aFlipMode2: TFlipMode; const aOrigin2: PPoint; var aHitPos: TPoint): Boolean;
     function  CollidePoint(const aNum, aGroup: Integer; const aX, aY, aScale, aAngle: Single; const aFlipMode: TFlipMode; const aOrigin: PPoint; var aPoint: TPoint): Boolean;
     function  Polygon(const aNum: Integer): TPolygon;
@@ -14188,6 +14203,53 @@ type
     procedure SetRenderPolyPoint(const aValue: Boolean);
     class function CreateEntity(const aSprite: TSprite; const aGroup: Integer): TEntity;
   end;
+
+type
+  TCmdConsoleActionEvent = procedure(const aParams: array of string) of object;
+
+  TCmdConsole = class(TBaseObject)
+  protected type
+    TState = (csDropDown, csHover, csRaiseUp);
+    PAction = ^TAction;
+    TAction = record
+      Name: string;
+      Discription: string;
+      Handler: TCmdConsoleActionEvent;
+    end;
+  protected
+    FActive: Boolean;
+    FPos: Single;
+    FRect: TRect;
+    FSpeed: Single;
+    FState: TState;
+    FColor: TColor;
+    FFont: TFont;
+    FMaxTextInput: Integer;
+    FShowCursor: Boolean;
+    FShowCursorTimer: Single;
+    FInputText: string;
+    FTextLines: TStringList;
+    FMaxTextLinesCount: Integer;
+    FCmdActions: TDictionary<string, TAction>;
+    FCmdHistory: TStringList;
+    FMaxCmdHistoryCount: Integer;
+    FCmdHistoryIndex: Integer;
+    FPauseId: Int64;
+    function ProcessCmd(const aCmdLine: string): Boolean;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure SetActive(const aActive: Boolean);
+    function  GetActive: Boolean;
+    procedure Update(const aDeltaTime: Double);
+    procedure Render;
+    procedure AddTextLine(const aMsg: string; const aArgs: array of const);
+    procedure ClearCommands;
+    function  AddCommand(const aName, aDiscription: string; aHandler: TCmdConsoleActionEvent): Boolean;
+    procedure ClsCmd(const aParams: array of string);
+    procedure HelpCmd(const aParams: array of string);
+  end;
+
 
 {$ENDREGION}
 
@@ -14790,6 +14852,7 @@ type
 
     end;
   protected
+    FAppPauseId: Int64;
     FReady: Boolean;
     FTerminate: Boolean;
 
@@ -14810,8 +14873,11 @@ type
     FDefaultFont: TFont;
     FSprite: TSprite;
     FScene: TActorScene;
+    FCmdConsole: TCmdConsole;
     FSettings: TSettings;
     FMousePos: TPoint;
+    FPaused: Boolean;
+    FPauseId: Int64;
   public
     property Timer: TTimer read FTimer;
     property CmdLine: TCmdLine read FCmdLine;
@@ -14823,6 +14889,7 @@ type
     property Video: TVideo read FVideo;
     property Window: TWindow read FWindow;
     property Hud: THud read FHud;
+    property CmdConsole: TCmdConsole read FCmdConsole;
     property Screenshake: TScreenshake read FScreenshake;
     property Async: TAsync read FAsync;
     property Terminate: Boolean read FTerminate write FTerminate;
@@ -14832,6 +14899,8 @@ type
     property Sprite: TSprite read FSprite;
     property Scene: TActorScene read FScene;
     property MousePos: TPoint read FMousePos;
+    property Paused: Boolean read FPaused;
+    property Ready: Boolean read FReady;
 
     constructor Create; override;
     destructor Destroy; override;
@@ -14842,6 +14911,8 @@ type
     procedure Shutdown; virtual;
     procedure Process; virtual;
     procedure Run; virtual;
+    function  Pause: Int64;
+    procedure Resume(const aId: Int64);
 
     procedure OnSetSettings; virtual;
     function  OnApplySettings: Boolean; virtual;
@@ -24081,9 +24152,13 @@ begin
   FAccumulator := FAccumulator + FPassed;
   while (FAccumulator >= FDeltaTime) do
   begin
-    Game.Screenshake.Process(FUpdateSpeed, FDeltaTime);
-    Game.OnUpdate(FDeltaTime);
-    if FrameSpeed(FFixedUpdateTimer, FFixedUpdateSpeed) then Game.OnFixedUpdate(FFixedUpdateSpeed);
+    Game.CmdConsole.Update(FDeltaTime);
+    if not Game.CmdConsole.GetActive then
+    begin
+      Game.Screenshake.Process(FUpdateSpeed, FDeltaTime);
+      Game.OnUpdate(FDeltaTime);
+      if FrameSpeed(FFixedUpdateTimer, FFixedUpdateSpeed) then Game.OnFixedUpdate(FFixedUpdateSpeed);
+    end;
     FAccumulator := FAccumulator - FDeltaTime;
   end;
 end;
@@ -24099,20 +24174,15 @@ begin
   end;
 end;
 
-class function  TTimer.FrameElapsed(var aTimer: Single; aFrames: Single): Boolean;
+class function  TTimer.ElapsedTime(var aTimer: Single; aSeconds: Single): Boolean;
 begin
   Result := False;
   aTimer := aTimer + FDeltaTime;
-  if aTimer > aFrames then
+  if aTimer > aSeconds then
   begin
     aTimer := 0;
     Result := True;
   end;
-end;
-
-class function  TTimer.Elapsed(var aTimer: Single; aSeconds: Single): Boolean;
-begin
-  Result := FrameElapsed(aTimer, FUpdateSpeed*aSeconds);
 end;
 
 class function  TTimer.FrameRate: Cardinal;
@@ -26807,6 +26877,7 @@ begin
   SDL_RenderClear(FRenderer);
 
 
+
   Result := True;
 end;
 
@@ -26931,35 +27002,39 @@ begin
   Result := FRendererInfo;
 end;
 
-class procedure TWindow.DrawPoint(const aX, aY: Single; const aColor: TColor);
+class procedure TWindow.DrawPoint(const aX, aY: Single; const aColor: TColor; const aBlendMode: TBlendMode);
 begin
   if not IsOpen then Exit;
+  SDL_SetRenderDrawBlendMode(FRenderer, SDL_BlendMode(aBlendMode));
   SDL_SetRenderDrawColor(FRenderer, aColor.Red, aColor.Green, aColor.BLue, aColor.Alpha);
   SDL_RenderDrawPointF(FRenderer, aX, aY);
 end;
 
-class procedure TWindow.DrawLine(const aX1, aY1, aX2, aY2: Single; const aColor: TColor);
+class procedure TWindow.DrawLine(const aX1, aY1, aX2, aY2: Single; const aColor: TColor; const aBlendMode: TBlendMode);
 begin
   if not IsOpen then Exit;
+  SDL_SetRenderDrawBlendMode(FRenderer, SDL_BlendMode(aBlendMode));
   SDL_SetRenderDrawColor(FRenderer, aColor.Red, aColor.Green, aColor.BLue, aColor.Alpha);
   SDL_RenderDrawLineF(FRenderer, aX1, aY1, aX2, aY2);
 end;
 
-class procedure TWindow.DrawRect(const aX, aY, aWidth, aHeight: Single; const aColor: TColor);
+class procedure TWindow.DrawRect(const aX, aY, aWidth, aHeight: Single; const aColor: TColor; const aBlendMode: TBlendMode);
 var
   LRect: SDL_FRect;
 begin
   if not IsOpen then Exit;
+  SDL_SetRenderDrawBlendMode(FRenderer, SDL_BlendMode(aBlendMode));
   SDL_SetRenderDrawColor(FRenderer, aColor.Red, aColor.Green, aColor.BLue, aColor.Alpha);
   LRect.x := aX; LRect.y := aY; LRect.w := aWidth; LRect.h := aHeight;
   SDL_RenderDrawRectF(FRenderer, @LRect);
 end;
 
-class procedure TWindow.DrawFilledRect(const aX, aY, aWidth, aHeight: Single; const aColor: TColor);
+class procedure TWindow.DrawFilledRect(const aX, aY, aWidth, aHeight: Single; const aColor: TColor; const aBlendMode: TBlendMode);
 var
   LRect: SDL_FRect;
 begin
   if not IsOpen then Exit;
+  SDL_SetRenderDrawBlendMode(FRenderer, SDL_BlendMode(aBlendMode));
   SDL_SetRenderDrawColor(FRenderer, aColor.Red, aColor.Green, aColor.BLue, aColor.Alpha);
   LRect.x := aX; LRect.y := aY; LRect.w := aWidth; LRect.h := aHeight;
   SDL_RenderFillRectF(FRenderer, @LRect);
@@ -27205,6 +27280,7 @@ end;
 
 class operator TInput.Initialize (out aDest: TInput);
 begin
+  aDest.FTextInput := '';
 end;
 
 class operator TInput.Finalize (var aDest: TInput);
@@ -27218,7 +27294,9 @@ begin
   SDL_Init(SDL_INIT_GAMECONTROLLER);
   FController.Startup;
   FIsOpen := True;
+  FMaxTextInput := TEXTINPUT_MAXLEN;
   Clear;
+  FEnableTextInput := False;
 end;
 
 class procedure TInput.Close;
@@ -27226,6 +27304,8 @@ begin
   if not FIsOpen then Exit;
   FController.Shutdown;
   FIsOpen := False;
+  FTextInput := '';
+  FEnableTextInput := False;
 end;
 
 class procedure TInput.Clear;
@@ -27238,6 +27318,25 @@ begin
   FController.Clear;
 end;
 
+class procedure TInput.ClearKey(const aKey: Cardinal);
+begin
+  FKeyButtons[0, aKey] := False;
+  FKeyButtons[1, aKey] := False;
+end;
+
+class procedure TInput.ClearTextInput;
+begin
+  FTextInput := '';
+end;
+
+class procedure TInput.ClearLastInputChar;
+begin
+  if not FTextInput.IsEmpty then
+  begin
+    Delete(FTextInput, Length(FTextInput),1);
+  end;
+end;
+
 class procedure TInput.Update(const aEvent: PSDL_Event);
 begin
   if not FIsOpen then Exit;
@@ -27245,11 +27344,26 @@ begin
   case aEvent.type_ of
     Ord(SDL_TEXTINPUT):
     begin
+      if FEnableTextInput then
+      begin
+        if Cardinal(FTextInput.Length) < TInput.FMaxTextInput then
+        begin
+          FTextInput := FTextInput + string(aEvent.text.text);
+        end;
+      end;
     end;
 
     Ord(SDL_KEYDOWN):
     begin
       FKeyButtons[0, Ord(aEvent.key.keysym.scancode)] := True;
+
+      if FEnableTextInput then
+      begin
+        if aEvent.key.keysym.sym = SDLK_BACKSPACE then
+        begin
+          ClearLastInputChar;
+        end;
+      end;
     end;
 
     Ord(SDL_KEYUP):
@@ -27277,6 +27391,36 @@ begin
   end;
 
   FController.Update(aEvent);
+end;
+
+class function  TInput.GetTextInput: string;
+begin
+  Result := FTextInput;
+end;
+
+class procedure TInput.SetTextInput(const aText: string);
+begin
+  FTextInput := aText;
+end;
+
+class procedure TInput.SetTextInputSize(const aSize: Cardinal);
+begin
+  FMaxTextInput := aSize;
+end;
+
+class function  TInput.GetTextInputSize: Cardinal;
+begin
+  Result := FMaxTextInput;
+end;
+
+class function  TInput.GetEnableTextInput: Boolean;
+begin
+  Result := FEnableTextInput;
+end;
+
+class procedure TInput.SetEnableTextInput(const aEnable: Boolean);
+begin
+  FEnableTextInput := aEnable;
 end;
 
 class function  TInput.KeyDown(const aKey: Cardinal): Boolean;
@@ -28911,7 +29055,7 @@ begin
   Result := True;
 end;
 
-procedure TPolygon.Render(const aX, aY, aScale, aAngle, aWidth: Single; aColor: TColor; aFlipMode: TFlipMode; aOrigin: PPoint);
+procedure TPolygon.Render(const aX, aY, aScale, aAngle, aWidth: Single; aColor: TColor; aFlipMode: TFlipMode; aOrigin: PPoint; const aBlendMode: TBlendMode);
 var
   I: Integer;
   X0,Y0,X1,Y1: Integer;
@@ -28926,7 +29070,7 @@ begin
       Y0 := Round(FWorldPoint[I].Y);
       X1 := Round(FWorldPoint[I+1].X);
       Y1 := Round(FWorldPoint[I+1].Y);
-      Game.Window.DrawLine(X0, Y0, X1, Y1, aColor);
+      Game.Window.DrawLine(X0, Y0, X1, Y1, aColor, aBlendMode);
     end;
   end;
 end;
@@ -29317,10 +29461,10 @@ begin
   Result := FCount;
 end;
 
-procedure TPolyPoint.Render(const aNum: Integer; aX, aY, aScale, aAngle: Single; const aColor: TColor; const aFlipMode: TFlipMode; const aOrigin: PPoint);
+procedure TPolyPoint.Render(const aNum: Integer; aX, aY, aScale, aAngle: Single; const aColor: TColor; const aFlipMode: TFlipMode; const aOrigin: PPoint; const aBlendMode: TBlendMode);
 begin
   if aNum >= FCount then Exit;
-  FPolygon[aNum].Render(aX, aY, aScale, aAngle, 1, aColor, aFlipMode, aOrigin);
+  FPolygon[aNum].Render(aX, aY, aScale, aAngle, 1, aColor, aFlipMode, aOrigin, aBlendMode);
 end;
 
 function  TPolyPoint.Collide(const aNum1, aGroup1: Integer; const aX1, aY1, aScale1, aAngle1: Single; const aFlipMode1: TFlipMode; const aOrigin1: PPoint; const aPolyPoint2: TPolyPoint; const aNum2, aGroup2: Integer; const aX2, aY2, aScale2, aAngle2: Single; const aFlipMode2: TFlipMode; const aOrigin2: PPoint; var aHitPos: TPoint): Boolean;
@@ -29544,7 +29688,7 @@ begin
       oxy.X := Round(oxy.X * aOrigin.X);
       oxy.Y := Round(oxy.Y * aOrigin.Y);
     end;
-   FGroup[aGroup].PolyPoint.Render(aNum, aX, aY, aScale, aAngle, YELLOW, aFlipMode, @oxy);
+   FGroup[aGroup].PolyPoint.Render(aNum, aX, aY, aScale, aAngle, YELLOW, aFlipMode, @oxy, aBlendMode);
   end;
 end;
 
@@ -30178,6 +30322,339 @@ begin
   if not Assigned(Result) then Exit;
   Result.Init(aSprite, aGroup);
 end;
+
+constructor TCmdConsole.Create;
+begin
+  inherited;
+
+  FActive := False;
+  FPos := 0;
+  FRect.Assign(0,0,0,0);
+  FSpeed := 0;
+  FState := csDropDown;
+  FColor := OVERLAY1;
+  FFont  := nil;
+  FMaxTextInput := 50;
+  FShowCursor := True;
+  FShowCursorTimer := 0;
+  FInputText := '';
+  FMaxTextLinesCount := 0;
+  FMaxCmdHistoryCount := 20;
+  FCmdHistoryIndex := 0;
+  FPauseId := -1;
+
+  FCmdActions := TDictionary<string, TAction>.Create;
+  FTextLines := TStringList.Create;
+  FCmdHistory := TStringList.Create;
+  FFont := TFont.Create;
+  FFont.LoadDefault(9, '█▌▎▶');
+
+
+  AddCommand('cls', 'Clear command console', ClsCmd);
+  AddCommand('help', 'Display list of commands', HelpCmd);
+end;
+
+destructor TCmdConsole.Destroy;
+begin
+  FreeNilObject(FFont);
+  FreeNilObject(FCmdHistory);
+  FreeNilObject(FTextLines);
+  FreeNilObject(FCmdActions);
+
+  inherited;
+end;
+
+procedure TCmdConsole.SetActive(const aActive: Boolean);
+begin
+  FActive := aActive;
+end;
+
+function  TCmdConsole.GetActive: Boolean;
+begin
+  Result := FActive;
+end;
+
+procedure TCmdConsole.Update(const aDeltaTime: Double);
+var
+  LCmdLine: string;
+
+  function InHistory: Boolean;
+  var
+    I: Integer;
+  begin
+    Result := True;
+    for I := 0 to FCmdHistory.Count-1 do
+    begin
+      if SameText(FCmdHistory[i], LCmdLine) then Exit;
+    end;
+    Result := False;
+  end;
+
+begin
+  if Game.Input.KeyPressed(KEY_GRAVE) then
+  begin
+
+    Game.Input.SetEnableTextInput(True);
+
+    if FActive then
+      Game.Input.ClearLastInputChar;
+
+    Game.Input.SetTextInputSize(FMaxTextInput);
+
+    case FState of
+      csDropDown:
+      begin
+        FPauseId := Game.Pause;
+        Game.Input.Clear;
+        FActive := True;
+
+        FRect := Game.Window.GetViewport;
+
+        FPos := 0;
+        FSpeed := 1.7;
+        FRect.X := 0;
+        FRect.Y := -FRect.Height;
+      end;
+
+      csHover:
+      begin
+        FRect.Y := -FRect.Height+Lerp(0, FRect.Height, FPos);
+        FPos := FPos - (FSpeed * aDeltaTime);
+        FState := csRaiseUp;
+      end;
+
+      csRaiseUp:
+      begin
+      end;
+    end;
+  end;
+
+  if not FActive then Exit;
+
+  case FState of
+    csDropDown:
+    begin
+      if FPos >= 0.85 then
+      begin
+        FState := csHover;
+        Exit;
+      end;
+      FRect.Y := -FRect.Height+Lerp(0, FRect.Height, FPos);
+      FPos := FPos + (FSpeed * aDeltaTime);
+    end;
+
+    csHover:
+    begin
+      if Game.Timer.ElapsedTime(FShowCursorTimer, 0.5) then
+      begin
+        FShowCursor := not FShowCursor;
+      end;
+
+      if Game.Input.KeyPressed(KEY_UP) then
+        begin
+          if FCmdHistoryIndex > 0 then
+          begin
+            Dec(FCmdHistoryIndex);
+            Game.Input.SetTextInput(FCmdHistory[FCmdHistoryIndex]);
+            FInputText := Game.Input.GetTextInput;
+            FShowCursor := True;
+          end;
+        end
+      else
+      if Game.Input.KeyPressed(KEY_DOWN) then
+        begin
+          if FCmdHistoryIndex < FCmdHistory.Count-1 then
+          begin
+            Inc(FCmdHistoryIndex);
+            Game.Input.SetTextInput(FCmdHistory[FCmdHistoryIndex]);
+            FInputText := Game.Input.GetTextInput;
+            FShowCursor := True;
+          end;
+        end;
+
+      if Game.Input.KeyPressed(KEY_RETURN) then
+      begin
+        LCmdLine := FInputText.Trim;
+        Game.Input.Clear;
+        Game.Input.ClearTextInput;
+        if LCmdLine.IsEmpty then Exit;
+        if ProcessCmd(LCmdLine) then
+          begin
+
+            if not InHistory then
+            begin
+              if FCmdHistory.Count = FMaxCmdHistoryCount then
+              begin
+                FCmdHistory.Delete(0);
+              end;
+              FCmdHistory.Add(LCmdLine);
+            end;
+          end
+        else
+          begin
+            AddTextLine('Error: "%s" unknown command!', [LCmdLine]);
+          end;
+      end;
+
+    end;
+
+    csRaiseUp:
+    begin
+      if FPos <= 0 then
+      begin
+        FState := csDropDown;
+        FActive := False;
+        Game.Input.SetEnableTextInput(False);
+        Game.Resume(FPauseId);
+        Exit;
+      end;
+      FRect.Y := -FRect.Height+Lerp(0, FRect.Height, FPos);
+      FPos := FPos - (FSpeed * aDeltaTime);
+    end;
+  end;
+
+end;
+
+procedure TCmdConsole.Render;
+var
+  LPos: TPoint;
+  LInputText: string;
+  I: Integer;
+begin
+  if not FActive then Exit;
+
+  LPos.X := FRect.X;
+  LPos.Y := FRect.Y+FRect.Height-FFont.TextHeight+4;
+
+  Game.Window.DrawFilledRect(FRect.X, FRect.Y, FRect.Width, FRect.Height, OVERLAY1, bmBlend);
+
+  LInputText := '▶' +  FInputText;
+  if FShowCursor then
+    LInputText := LInputText + '▎';
+  Game.Window.DrawFilledRect(LPos.X, LPos.Y, FRect.Width, FFont.TextHeight+4, OVERLAY2, bmBlend);
+  FFont.DrawText(LPos.X, LPos.Y, WHITE, haLeft, LInputText, []);
+
+  if (FState = csHover) or (FState = csRaiseUp) then
+  begin
+    if Game.Input.GetTextInput <> FInputText then
+    begin
+      FInputText := Game.Input.GetTextInput;
+      FShowCursorTimer := 0;
+      FShowCursor := True;
+    end;
+  end;
+
+  LPos.X := FFont.TextLength('▶', []);
+  LPos.Y := LPos.Y - (FFont.TextHeight+4);
+  for I := FTextLines.Count-1 downto 0 do
+  begin
+    if LPos.Y < 0 then break;
+    FFont.DrawText(LPos.X, LPos.Y, WHITE, haLeft, FTextLines[I], []);
+    LPos.Y := LPos.Y - FFont.TextHeight;;
+  end;
+
+end;
+
+procedure TCmdConsole.AddTextLine(const aMsg: string; const aArgs: array of const);
+var
+  LMsg: string;
+begin
+  if aMsg.IsEmpty then Exit;
+
+
+  FMaxTextLinesCount := Round(FRect.Height / FFont.TextHeight);
+  if FTextLines.Count = FMaxTextLinesCount then
+  begin
+    FTextLines.Delete(0);
+  end;
+
+  LMsg := Format(aMsg, aArgs);
+
+  FTextLines.Add(LMsg);
+
+end;
+
+procedure TCmdConsole.ClearCommands;
+begin
+  FCmdActions.Clear;
+end;
+
+function TCmdConsole.AddCommand(const aName, aDiscription: string; aHandler: TCmdConsoleActionEvent): Boolean;
+var
+  FCmd: TAction;
+begin
+  Result := False;
+  if not Assigned(aHandler) then Exit;
+  FCmd.Name := aName;
+  FCmd.Discription := aDiscription;
+  FCmd.Handler := aHandler;
+  FCmdActions.AddOrSetValue(aName, FCmd);
+  Result := True;
+end;
+
+function TCmdConsole.ProcessCmd(const aCmdLine: string): Boolean;
+var
+  LParamList: TStringList;
+  LParams: array of string;
+  LAction: TAction;
+  I: Integer;
+begin
+  Result := False;
+  if aCmdLine.IsEmpty then Exit;
+
+  LParams := nil;
+  LParamList := TStringList.Create;
+  try
+    ExtractStrings([#32], [#32], PChar(aCmdLine), LParamList);
+
+    if FCmdActions.TryGetValue(LParamList[0], LAction) then
+    begin
+      if not Assigned(LAction.Handler) then Exit;
+
+      SetLength(LParams, LParamList.Count);
+      for I := Low(LParams) to High(LParams) do
+      begin
+        LParams[i] := LParamList[i];
+      end;
+      AddTextLine(aCmdLine, []);
+      LAction.Handler(LParams);
+      Result := True;
+    end;
+
+  finally
+    FreeNilObject(LParamList);
+  end;
+
+
+end;
+
+procedure TCmdConsole.ClsCmd(const aParams: array of string);
+begin
+  FTextLines.Clear;
+  AddTextLine(aParams[0], []);
+end;
+
+procedure TCmdConsole.HelpCmd(const aParams: array of string);
+var
+  LAction: TAction;
+  LMaxLen: Integer;
+begin
+  AddTextLine('', []);
+  AddTextLine('Options:', []);
+
+  LMaxLen := 0;
+  for LAction in FCmdActions.Values do
+  begin
+    if LAction.Name.Length > LMaxLen then
+      LMaxLen := LAction.Name.Length;
+  end;
+
+  for LAction in FCmdActions.Values do
+  begin
+    AddTextLine('  %s - %s', [LAction.Name.PadRight(LMaxLen), LAction.Discription]);
+  end;
+end;
+
 
 {$ENDREGION}
 
@@ -34209,6 +34686,8 @@ end;
 constructor TGame.Create;
 begin
   inherited;
+  FAppPauseId := -1;
+  FPauseId := 0;
 end;
 
 destructor TGame.Destroy;
@@ -34271,6 +34750,7 @@ var
 
     Timer.Update;
 
+    SDL_SetRenderDrawBlendMode(Game.Window.GetRendererHandle, SDL_BLENDMODE_NONE);
     OnClearWindow;
 
     OnRender;
@@ -34278,6 +34758,8 @@ var
     FWindow.ShowRenderBuffer;
 
     OnRenderHud;
+
+    FCmdConsole.Render;
 
     OnShowWindow;
   end;
@@ -34296,6 +34778,7 @@ begin
         try
           FReady := False;
           FTerminate := False;
+          FPaused := False;
 
           while not FTerminate do
           begin
@@ -34322,12 +34805,7 @@ begin
                     Ord(SDL_WINDOWEVENT_FOCUS_LOST):
                     begin
                       FReady := False;
-                      if not Settings.WindowUpdateOnLostFocus then
-                      begin
-                        FAsync.Suspend;
-                        Mix_Pause(-1);
-                        Mix_PauseMusic;
-                      end;
+                      FAppPauseId := Pause;
                       OnReady(FReady);
                     end;
 
@@ -34337,13 +34815,7 @@ begin
                     Ord(SDL_WINDOWEVENT_FOCUS_GAINED):
                       begin
                         FReady := True;
-                        if not Settings.WindowUpdateOnLostFocus then
-                        begin
-                          FAsync.Resume;
-                          Mix_Resume(-1);
-                          Mix_ResumeMusic;
-                        end;
-
+                        Resume(FAppPauseId);
                         OnReady(FReady);
                         Timer.Reset;
                       end;
@@ -34395,6 +34867,41 @@ begin
   finally
     Shutdown;
   end;
+end;
+
+function TGame.Pause: Int64;
+begin
+  Result := -1;
+
+  if FPaused then Exit;
+
+  if not Settings.WindowUpdateOnLostFocus then
+  begin
+    FAsync.Suspend;
+    Mix_Pause(-1);
+    Mix_PauseMusic;
+    FSpeech.Pause;
+    Inc(FPauseId);
+    FPaused := True;
+    Result := FPauseId;
+  end;
+end;
+
+procedure TGame.Resume(const aId: Int64);
+begin
+  if not FPaused then Exit;
+
+  if not Settings.WindowUpdateOnLostFocus then
+  begin
+    if aId <> FPauseId then Exit;
+
+    FAsync.Resume;
+    Mix_Resume(-1);
+    Mix_ResumeMusic;
+    FSpeech.Resume;
+    FPaused := False;
+  end;
+
 end;
 
 procedure TGame.OnSetSettings;
@@ -34465,11 +34972,15 @@ begin
 
   Timer.Reset(Settings.TimerUpdateRate, Settings.TimerFixedUpdateRate);
 
+  FCmdConsole := TCmdConsole.Create;
+
   Result := True;
 end;
 
 procedure TGame.OnUnapplySettings;
 begin
+  FreeNilObject(FCmdConsole);
+
   FreeNilObject(FScene);
 
   FreeNilObject(FSprite);

@@ -175,7 +175,7 @@ end;
 
 procedure TMyActor.OnRender;
 begin
-  Game.Window.DrawFilledRect(FPos.X, FPos.Y, FSize, FSize, FColor);
+  Game.Window.DrawFilledRect(FPos.X, FPos.Y, FSize, FSize, FColor, bmBlend);
 end;
 
 { TExample }

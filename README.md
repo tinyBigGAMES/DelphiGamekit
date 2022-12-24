@@ -74,8 +74,6 @@ Thank you very much for any support you can provide, I will be most grateful. :c
 - See examples in the `installdir\examples` folder for more information about usage.
 - See `installdir\docs` folder for documentation.
 
-***NOTE: All executables in this repo that are created by us will be digitally signed as tinyBigGAMES LLC, for your protection and peace of mind.***
-
 ## Known Issues
 - This project is in active development so changes will be frequent 
 - Documentation is WIP. They will continue to evolve
