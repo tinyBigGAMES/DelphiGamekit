@@ -73,7 +73,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 *****************************************************************************)
 
-unit uscreenshake;
+unit ustarfield_render;
 
 interface
 uses
@@ -85,9 +85,7 @@ type
   { TExample }
   TExample = class(TBaseTemplate)
   protected
-    FTexture: TTexture;
-    FOrigin: TPoint;
-    FAngle: Single;
+    FStarfield: TStarfield;
   public
     procedure OnSetSettings; override;
     procedure OnStartup; override;
@@ -104,7 +102,7 @@ procedure TExample.OnSetSettings;
 begin
   inherited;
 
-  Settings.WindowTitle := Settings.WindowTitle + 'Screenshake';
+  Settings.WindowTitle := Settings.WindowTitle + 'Starfield: Render';
   Settings.WindowClearColor := BLACK;
 end;
 
@@ -112,38 +110,92 @@ procedure TExample.OnStartup;
 begin
   inherited;
 
-  FTexture := TTexture.LoadTexture(Archive, 'arc/images/DelphiGamekit1.png', nil);
-
-  FOrigin.X := 0.5;
-  FOrigin.Y := 0.5;
-
-  FAngle := 0;
+  FStarfield := TStarfield.Create;
 
 end;
 
 procedure TExample.OnShutdown;
 begin
-  FreeNilObject(FTexture);
+
+  FreeNilObject(FStarfield);
 
   inherited;
 end;
 
 procedure TExample.OnUpdate(const aDeltaTime: Double);
+const
+  cFactor = 20;
 begin
   inherited;
 
-  FAngle := FAngle + (30.0 * aDeltaTime);
-  ClipValuef(FAngle, 0, 360, True);
+  if Input.KeyPressed(KEY_1) then
+  begin
+    FStarfield.SetXSpeed(25*cFactor);
+    FStarfield.SetYSpeed(0);
+    FStarfield.SetZSpeed(-(5*cFactor));
+    FStarfield.SetVirtualPos(0, 0);
+  end;
 
-  if Input.KeyPressed(KEY_S) then
-    Screenshake.Start(60, 7);
+  if Input.KeyPressed(KEY_2) then
+  begin
+    FStarfield.SetXSpeed(0);
+    FStarfield.SetYSpeed(-25*cFactor);
+    FStarfield.SetZSpeed(-(5*cFactor));
+    FStarfield.SetVirtualPos(0, 0);
+
+  end;
+
+  if Input.KeyPressed(KEY_3) then
+  begin
+    FStarfield.SetXSpeed(-25*cFactor);
+    FStarfield.SetYSpeed(0);
+    FStarfield.SetZSpeed(-(5*cFactor));
+    FStarfield.SetVirtualPos(0, 0);
+  end;
+
+  if Input.KeyPressed(KEY_4) then
+  begin
+    FStarfield.SetXSpeed(0);
+    FStarfield.SetYSpeed(25*cFactor);
+    FStarfield.SetZSpeed(-(5*cFactor));
+    FStarfield.SetVirtualPos(0, 0);
+  end;
+
+  if Input.KeyPressed(KEY_5) then
+  begin
+    FStarfield.SetXSpeed(0);
+    FStarfield.SetYSpeed(0);
+    FStarfield.SetZSpeed(5*cFactor);
+    FStarfield.SetVirtualPos(0, 0);
+  end;
+
+  if Input.KeyPressed(KEY_6) then
+  begin
+    FStarfield.Init(250, -1000, -1000, 10, 1000, 1000, 1000, 160);
+    FStarfield.SetZSpeed(0);
+    FStarfield.SetYSpeed(15*cFactor);
+  end;
+
+
+  if Input.KeyPressed(KEY_7) then
+  begin
+    FStarfield.Init(250, -1000, -1000, 10, 1000, 1000, 1000, 120);
+    FStarfield.SetXSpeed(0);
+    FStarfield.SetYSpeed(0);
+    FStarfield.SetZSpeed(-60*3);
+    FStarfield.SetVirtualPos(0, 0);
+  end;
+
+
+  FStarfield.Update(aDeltaTime);
+
 end;
 
 procedure TExample.OnRender;
 begin
   inherited;
 
-  FTexture.Render(nil, Settings.WindowWidth/2, Settings.WindowHeight/2, 1, FAngle, fmNone, @FOrigin, WHITE, bmBlend);
+  FStarfield.Render;
 
 end;
 
@@ -151,7 +203,7 @@ procedure TExample.OnRenderHud;
 begin
   inherited;
 
-  Hud.Text(FDefaultFont, GREEN, haLeft, Hud.TextItem('S', 'Screenshake'), []);
+  Hud.Text(DefaultFont, GREEN, haLeft, Hud.TextItem('1-7', 'Change starfield'), []);
 
 end;
 

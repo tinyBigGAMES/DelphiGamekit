@@ -14250,6 +14250,35 @@ type
     procedure HelpCmd(const aParams: array of string);
   end;
 
+type
+  TStarfield = class(TBaseObject)
+  protected type
+    TStarfieldItem = record
+      X, Y, Z, Speed: Single;
+    end;
+  protected
+    FCenter: TPoint;
+    FMin: TPoint;
+    FMax: TPoint;
+    FViewScaleRatio: Single;
+    FViewScale: Single;
+    FStarCount: Cardinal;
+    FStar: array of TStarfieldItem;
+    FSpeed: TPoint;
+    FVirtualPos: TPoint;
+    procedure TransformDrawPoint(aX, aY, aZ: Single; aVPX, aVPY, aVPW, aVPH: Single);
+    procedure Done;  public
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure Init(aStarCount: Cardinal; aMinX, aMinY, aMinZ, aMaxX, aMaxY, aMaxZ, aViewScale: Single);
+    procedure SetVirtualPos(aX, aY: Single);
+    procedure GetVirtualPos(var aX: Single; var aY: Single);
+    procedure SetXSpeed(aSpeed: Single);
+    procedure SetYSpeed(aSpeed: Single);
+    procedure SetZSpeed(aSpeed: Single);
+    procedure Update(aDeltaTime: Single);
+    procedure Render;
+  end;
 
 {$ENDREGION}
 
@@ -30655,6 +30684,209 @@ begin
   end;
 end;
 
+procedure TStarfield.TransformDrawPoint(aX, aY, aZ: Single; aVPX, aVPY, aVPW, aVPH: Single);
+var
+  LX, LY: Single;
+  LSize: Single;
+  LOOZ: Single;
+  LCV: byte;
+  LColor: TColor;
+
+  function IsVisible(vx, vy, vw, vh: Single): Boolean;
+  begin
+    Result := False;
+    if ((vx - vw) < 0) then Exit;
+    if (vx > (aVPW - 1)) then Exit;
+    if ((vy - vh) < 0) then Exit;
+    if (vy > (aVPH - 1)) then Exit;
+    Result := True;
+  end;
+
+begin
+  FViewScaleRatio := aVPW / aVPH;
+  FCenter.X := (aVPW / 2) + aVPX;
+  FCenter.Y := (aVPH / 2) + aVPY;
+
+  LOOZ := ((1.0 / aZ) * FViewScale);
+  LX := (FCenter.X - aVPX) - (aX * LOOZ) * FViewScaleRatio;
+  LY := (FCenter.Y - aVPY) + (aY * LOOZ) * FViewScaleRatio;
+  LSize := (1.0 * LOOZ);
+  if LSize < 2 then LSize := 2;
+
+  LX := LX - FVirtualPos.X;
+  LY := LY - FVirtualPos.Y;
+  if not IsVisible(LX, LY, LSize, LSize) then Exit;
+
+  LCV := round(255.0 - (((1.0 / FMax.Z) / (1.0 / aZ)) * 255.0));
+  LColor.Make(LCV, LCV, LCV, LCV);
+
+  Game.Window.DrawFilledRect(LX, LY, LSize, LSize, LColor, bmBlend);
+end;
+
+constructor TStarfield.Create;
+begin
+  inherited;
+
+  Init(250, -1000, -1000, 10, 1000, 1000, 1000, 120);
+end;
+
+destructor TStarfield.Destroy;
+begin
+  Done;
+
+  inherited;
+end;
+
+procedure TStarfield.Init(aStarCount: Cardinal; aMinX, aMinY, aMinZ, aMaxX, aMaxY, aMaxZ, aViewScale: Single);
+var
+  LVPX, LVPY: Single;
+  LVPW, LVPH: Single;
+  LI: Integer;
+  LSize: TRect;
+begin
+  Done;
+
+  FStarCount := aStarCount;
+  SetLength(FStar, FStarCount);
+  LSize := Game.Window.GetViewport;
+  LVPX := LSize.X;
+  LVPY := LSize.Y;
+  LVPW := LSize.Width;
+  LVPH := LSize.Height;
+
+  FViewScale := aViewScale;
+  FViewScaleRatio := LVPW / LVPH;
+  FCenter.X := (LVPW / 2) + LVPX;
+  FCenter.Y := (LVPH / 2) + LVPY;
+  FCenter.Z := 0;
+
+  FMin.X := aMinX;
+  FMin.Y := aMinY;
+  FMin.Z := aMinZ;
+  FMax.X := aMaxX;
+  FMax.Y := aMaxY;
+  FMax.Z := aMaxZ;
+
+  for LI := 0 to FStarCount - 1 do
+  begin
+    FStar[LI].X := RandomRangef(FMin.X, FMax.X);
+    FStar[LI].Y := RandomRangef(FMin.Y, FMax.Y);
+    FStar[LI].Z := RandomRangef(FMin.Z, FMax.Z);
+  end;
+
+  SetXSpeed(0.0);
+  SetYSpeed(0.0);
+  SetZSpeed(-60*3);
+  SetVirtualPos(0, 0);
+end;
+
+procedure TStarfield.Done;
+begin
+  FStar := nil;
+end;
+
+procedure TStarfield.SetVirtualPos(aX, aY: Single);
+begin
+  FVirtualPos.X := aX;
+  FVirtualPos.Y := aY;
+  FVirtualPos.Z := 0;
+end;
+
+procedure TStarfield.GetVirtualPos(var aX: Single; var aY: Single);
+begin
+  aX := FVirtualPos.X;
+  aY := FVirtualPos.Y;
+end;
+
+procedure TStarfield.SetXSpeed(aSpeed: Single);
+begin
+  FSpeed.X := aSpeed;
+end;
+
+procedure TStarfield.SetYSpeed(aSpeed: Single);
+begin
+  FSpeed.Y := aSpeed;
+end;
+
+procedure TStarfield.SetZSpeed(aSpeed: Single);
+begin
+  FSpeed.Z := aSpeed;
+end;
+
+procedure TStarfield.Update(aDeltaTime: Single);
+var
+  LI: Integer;
+
+  procedure SetRandomPos(aIndex: Integer);
+  begin
+    FStar[aIndex].X := RandomRangef(FMin.X, FMax.X);
+    FStar[aIndex].Y := RandomRangef(FMin.Y, FMax.Y);
+    FStar[aIndex].Z := RandomRangef(FMin.Z, FMax.Z);
+  end;
+
+begin
+
+  for LI := 0 to FStarCount - 1 do
+  begin
+    FStar[LI].X := FStar[LI].X + (FSpeed.X * aDeltaTime);
+    FStar[LI].Y := FStar[LI].Y + (FSpeed.Y * aDeltaTime);
+    FStar[LI].Z := FStar[LI].Z + (FSpeed.Z * aDeltaTime);
+
+    if FStar[LI].X < FMin.X then
+    begin
+      SetRandomPos(LI);
+      FStar[LI].X := FMax.X;
+    end;
+
+    if FStar[LI].X > FMax.X then
+    begin
+      SetRandomPos(LI);
+      FStar[LI].X := FMin.X;
+    end;
+
+    if FStar[LI].Y < FMin.Y then
+    begin
+      SetRandomPos(LI);
+      FStar[LI].Y := FMax.Y;
+    end;
+
+    if FStar[LI].Y > FMax.Y then
+    begin
+      SetRandomPos(LI);
+      FStar[LI].Y := FMin.Y;
+    end;
+
+    if FStar[LI].Z < FMin.Z then
+    begin
+      SetRandomPos(LI);
+      FStar[LI].Z := FMax.Z;
+    end;
+
+    if FStar[LI].Z > FMax.Z then
+    begin
+      SetRandomPos(LI);
+      FStar[LI].Z := FMin.Z;
+    end;
+
+  end;
+end;
+
+procedure TStarfield.Render;
+var
+  LI: Integer;
+  LVPX, LVPY, LVPW, LVPH: Single;
+  LSize: TRect;
+begin
+  LSize := Game.Window.GetViewport;
+  LVPX := LSize.X;
+  LVPY := LSize.Y;
+  LVPW := LSize.Width;
+  LVPH := LSize.Height;
+  for LI := 0 to FStarCount - 1 do
+  begin
+    TransformDrawPoint(FStar[LI].X, FStar[LI].Y, FStar[LI].Z, LVPX, LVPY, LVPW, LVPH);
+  end;
+end;
 
 {$ENDREGION}
 

@@ -73,86 +73,15 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 *****************************************************************************)
 
-unit uscreenshake;
-
-interface
+program starfield_render;
+{$APPTYPE CONSOLE}
+{$R *.res}
 uses
   System.SysUtils,
   DelphiGamekit,
-  uCommon;
+  ustarfield_render in 'ustarfield_render.pas';
 
-type
-  { TExample }
-  TExample = class(TBaseTemplate)
-  protected
-    FTexture: TTexture;
-    FOrigin: TPoint;
-    FAngle: Single;
-  public
-    procedure OnSetSettings; override;
-    procedure OnStartup; override;
-    procedure OnShutdown; override;
-    procedure OnUpdate(const aDeltaTime: Double); override;
-    procedure OnRender; override;
-    procedure OnRenderHud; override;
-  end;
-
-implementation
-
-{ TExample }
-procedure TExample.OnSetSettings;
 begin
-  inherited;
-
-  Settings.WindowTitle := Settings.WindowTitle + 'Screenshake';
-  Settings.WindowClearColor := BLACK;
-end;
-
-procedure TExample.OnStartup;
-begin
-  inherited;
-
-  FTexture := TTexture.LoadTexture(Archive, 'arc/images/DelphiGamekit1.png', nil);
-
-  FOrigin.X := 0.5;
-  FOrigin.Y := 0.5;
-
-  FAngle := 0;
-
-end;
-
-procedure TExample.OnShutdown;
-begin
-  FreeNilObject(FTexture);
-
-  inherited;
-end;
-
-procedure TExample.OnUpdate(const aDeltaTime: Double);
-begin
-  inherited;
-
-  FAngle := FAngle + (30.0 * aDeltaTime);
-  ClipValuef(FAngle, 0, 360, True);
-
-  if Input.KeyPressed(KEY_S) then
-    Screenshake.Start(60, 7);
-end;
-
-procedure TExample.OnRender;
-begin
-  inherited;
-
-  FTexture.Render(nil, Settings.WindowWidth/2, Settings.WindowHeight/2, 1, FAngle, fmNone, @FOrigin, WHITE, bmBlend);
-
-end;
-
-procedure TExample.OnRenderHud;
-begin
-  inherited;
-
-  Hud.Text(FDefaultFont, GREEN, haLeft, Hud.TextItem('S', 'Screenshake'), []);
-
-end;
-
+  RunGame(TExample);
+  Pause;
 end.
