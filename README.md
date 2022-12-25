@@ -17,6 +17,8 @@ if you wish to learn more about the Delphi language visit <a href="https://learn
 
 <a href="https://github.com/tinyBigGAMES/DelphiGamekit/releases" target="_blank">**Releases**</a> - These are the official release versions and deemed to be the most stable.
 
+<a href="https://tinybiggames.com/temp/DelphiGamekit_Examples.zip" target="_blank">**Examples**</a> - These are compiled examples (win64).
+
 ## Features
 - **Free** and open-source. See <a href="https://github.com/tinyBigGAMES/DelphiGamekit/blob/main/LICENSE" target="_blank">License agreement</a>.
 - Written in **Object Pascal**

@@ -57,6 +57,9 @@
         <Projects Include="..\examples\demo_chainaction.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="..\examples\demo_astroblaster.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -227,14 +230,23 @@
     <Target Name="demo_chainaction:Make">
         <MSBuild Projects="..\examples\demo_chainaction.dproj" Targets="Make"/>
     </Target>
+    <Target Name="demo_astroblaster">
+        <MSBuild Projects="..\examples\demo_astroblaster.dproj"/>
+    </Target>
+    <Target Name="demo_astroblaster:Clean">
+        <MSBuild Projects="..\examples\demo_astroblaster.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="demo_astroblaster:Make">
+        <MSBuild Projects="..\examples\demo_astroblaster.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="DGTools;speech_play;font_unicode;video_play;video_chained_play;texture_render;texture_colorkey;texture_tiled;texture_parallax;music_play;entity_render;entity_collision;screenshake;actor_spawn;camera_motion;starfield_render;demo_elastic;demo_chainaction"/>
+        <CallTarget Targets="DGTools;speech_play;font_unicode;video_play;video_chained_play;texture_render;texture_colorkey;texture_tiled;texture_parallax;music_play;entity_render;entity_collision;screenshake;actor_spawn;camera_motion;starfield_render;demo_elastic;demo_chainaction;demo_astroblaster"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="DGTools:Clean;speech_play:Clean;font_unicode:Clean;video_play:Clean;video_chained_play:Clean;texture_render:Clean;texture_colorkey:Clean;texture_tiled:Clean;texture_parallax:Clean;music_play:Clean;entity_render:Clean;entity_collision:Clean;screenshake:Clean;actor_spawn:Clean;camera_motion:Clean;starfield_render:Clean;demo_elastic:Clean;demo_chainaction:Clean"/>
+        <CallTarget Targets="DGTools:Clean;speech_play:Clean;font_unicode:Clean;video_play:Clean;video_chained_play:Clean;texture_render:Clean;texture_colorkey:Clean;texture_tiled:Clean;texture_parallax:Clean;music_play:Clean;entity_render:Clean;entity_collision:Clean;screenshake:Clean;actor_spawn:Clean;camera_motion:Clean;starfield_render:Clean;demo_elastic:Clean;demo_chainaction:Clean;demo_astroblaster:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="DGTools:Make;speech_play:Make;font_unicode:Make;video_play:Make;video_chained_play:Make;texture_render:Make;texture_colorkey:Make;texture_tiled:Make;texture_parallax:Make;music_play:Make;entity_render:Make;entity_collision:Make;screenshake:Make;actor_spawn:Make;camera_motion:Make;starfield_render:Make;demo_elastic:Make;demo_chainaction:Make"/>
+        <CallTarget Targets="DGTools:Make;speech_play:Make;font_unicode:Make;video_play:Make;video_chained_play:Make;texture_render:Make;texture_colorkey:Make;texture_tiled:Make;texture_parallax:Make;music_play:Make;entity_render:Make;entity_collision:Make;screenshake:Make;actor_spawn:Make;camera_motion:Make;starfield_render:Make;demo_elastic:Make;demo_chainaction:Make;demo_astroblaster:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

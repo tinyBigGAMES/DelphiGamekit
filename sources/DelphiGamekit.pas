@@ -12750,7 +12750,7 @@ resourcestring
 {$REGION ' DelphiGamekit.System '}
 const
   VERSION_MAJOR = '0';
-  VERSION_MINOR = '1';
+  VERSION_MINOR = '2';
   VERSION_PATCH = '0';
 
   LOGEXT  = 'log';
@@ -34820,12 +34820,17 @@ begin
 end;
 
 function TEntityActor.Collide(const aActor: TActor; var aHitPos: TPoint): Boolean;
+var
+  LEntity: TEntity;
 begin
   Result := False;
   if FEntity = nil then Exit;
   if aActor is TEntityActor then
   begin
-    Result := FEntity.CollidePolyPointPoint(aHitPos);
+    LEntity := TEntityActor(aActor).Entity;
+    if LEntity = nil then
+       Exit;
+    Result := FEntity.CollidePolyPoint(LEntity, aHitPos)
   end
 end;
 
