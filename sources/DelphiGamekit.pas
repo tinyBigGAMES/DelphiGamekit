@@ -13237,6 +13237,7 @@ type
 type
   EBufferException = class(Exception);
 
+  PBuffer = ^TBuffer;
   TBuffer = class(TCustomMemoryStream)
   protected
     FHandle: THandle;
@@ -13341,6 +13342,7 @@ function  GetSemVerStr(const aInstance: THandle): string;
 function  UnitToScalarValue(const aValue, aMaxValue: Double): Double;
 function  GetFileRWops(const aFilename: string): PSDL_RWops;
 function  GetMemRWops(const aMem: Pointer; const aSize: Integer): PSDL_RWops;
+function  GetRWops(const aArchive: TArchive; const aFilename: string; aBuffer: PBuffer): PSDL_RWops;
 function  ResourceExists(aInstance: THandle; const aResName: string): Boolean;
 function  IsSingleInstance(aMutexName: string; aKeepMutex: Boolean=True): Boolean;
 function  GetExePath: string;
@@ -26327,6 +26329,54 @@ begin
   Result := SDL_RWFromConstMem(aMem, aSize);
 end;
 
+function  GetRWops(const aArchive: TArchive; const aFilename: string; aBuffer: PBuffer): PSDL_RWops;
+var
+  FState: Integer;
+  LBuffer: TBuffer;
+begin
+  Result := nil;
+
+  FState := 0;
+
+  if Assigned(aArchive) then
+  begin
+    if aArchive.IsOpen then
+      begin
+        FState := 1;
+
+        if Assigned(aBuffer) then
+            FState := 2;
+      end
+  end;
+
+  case FState of
+    0: // from filesystem
+    begin
+      Result := GetFileRWops(aFilename);
+    end;
+
+    1: // from archive
+    begin
+      Result := aArchive.OpenFileRWops(aFilename);
+    end;
+
+    2: // from archive-buffer
+    begin
+      LBuffer := aArchive.OpenFileBuffer(aFilename);
+      if not Assigned(LBuffer) then Exit;
+      Result := GetMemRWops(LBuffer.Memory, LBuffer.Size);
+      if not Assigned(Result) then
+      begin
+        Result := nil;
+        FreeNilObject(LBuffer);
+        Exit;
+      end;
+      aBuffer^ := LBuffer;
+    end;
+  end;
+
+end;
+
 function  ResourceExists(aInstance: THandle; const aResName: string): Boolean;
 begin
   Result := Boolean((FindResource(aInstance, PChar(aResName), RT_RCDATA) <> 0));
@@ -27867,15 +27917,23 @@ begin
 
   if Assigned(aArchive) then
     begin
-      if not aArchive.IsOpen then Exit;
-      LBuffer := aArchive.OpenFileBuffer(LPath);
-      if not Assigned(LBuffer) then Exit;
+      if aArchive.IsOpen then
+        begin
+          LBuffer := aArchive.OpenFileBuffer(LPath);
+          if not Assigned(LBuffer) then Exit;
+        end
+      else
+        begin
+          LBuffer := TBuffer.LoadFromFile(aFilename);
+          if not Assigned(LBuffer) then Exit;
+        end;
     end
   else
     begin
       LBuffer := TBuffer.LoadFromFile(aFilename);
       if not Assigned(LBuffer) then Exit;
     end;
+
 
   Self.Clear;
 
@@ -28001,16 +28059,7 @@ var
 begin
   Result := False;
 
-  if Assigned(aArchive) then
-    begin
-      if aArchive.IsOpen then
-        LRWops := aArchive.OpenFileRWops(aFilename)
-      else
-        LRWops := GetFileRWops(aFilename);
-    end
-  else
-    LRWops := GetFileRWops(aFilename);
-
+  LRWops := GetRWOps(aArchive, aFilename, nil);
   if not Assigned(LRWops) then Exit;
 
   srcsurface := IMG_Load_RW(LRWops, Ord(SDL_True));
@@ -28462,20 +28511,10 @@ var
 begin
   Result := False;
 
-  if Assigned(aArchive) then
-    begin
-      if aArchive.IsOpen then
-        LRWops := aArchive.OpenFileRWops(aFilename)
-      else
-        LRWops := GetFileRWops(aFilename)
-    end
-  else
-    LRWops := GetFileRWops(aFilename);
-
+  LRWops := GetRWops(aArchive, aFilename, nil);
   if not Assigned(LRWops) then Exit;
 
   Result := Load(LRWops, aSize, aGlyphs);
-
 end;
 
 function TFont.LoadDefault(const aSize: Cardinal; const aGlyphs: string=''): Boolean;
@@ -28754,16 +28793,7 @@ begin
 
   Unload;
 
-  if Assigned(aArchive) then
-    begin
-      if aArchive.IsOpen then
-        FRWops := aArchive.OpenFileRWops(aFilename)
-      else
-        FRWops := GetFileRWops(aFilename);
-    end
-  else
-    FRWops := GetFileRWops(aFilename);
-
+  FRWops := GetRWops(aArchive, aFilename, nil);
   if FRWops = nil then Exit;
 
   LBuffer := plm_buffer_create_with_capacity(PLM_BUFFER_DEFAULT_SIZE);
@@ -28983,13 +29013,8 @@ var
 begin
   LRWops := nil;
 
-  if Assigned(aArchive) then
-    begin
-      if aArchive.IsOpen then
-        LRWops := aArchive.OpenFileRWops(aFilename)
-    end
-  else
-    LRWops := GetFileRWops(aFilename);
+  LRWops := GetRWops(aArchive, aFilename, nil);
+  if not Assigned(LRWops) then Exit;
 
   Clear;
 
@@ -31665,33 +31690,18 @@ end;
 
 class function  TAudio.LoadMusic(const aArchive: TArchive; const aFilename: string; const aUseBuffer: Boolean): TMusic;
 var
-  LBuffer: TBuffer;
+  LRWOps: PSDL_RWops;
 begin
   Result := nil;
-  if Assigned(aArchive) then
-    begin
-      if aArchive.IsOpen then
-      begin
-        if aUseBuffer then
-          begin
-            LBuffer := aArchive.OpenFileBuffer(aFilename);
-            if not Assigned(LBuffer) then Exit;
-            Result := Mix_LoadMUS_RW(GetMemRWops(LBuffer.Memory, LBuffer.Size), Ord(SDL_True));
-            if not Assigned(Result) then
-            begin
-              FreeNilObject(LBuffer);
-              Exit;
-            end;
-            FMusicBuffer := LBuffer;
-          end
-        else
-          begin
-            Result := Mix_LoadMUS_RW(aArchive.OpenFileRWops(aFilename), Ord(SDL_True))
-          end;
-      end;
-    end
+
+  if aUseBuffer then
+    LRWOps := GetRWops(aArchive, aFilename, @FMusicBuffer)
   else
-    Result := Mix_LoadMUS_RW(GetFileRWops(aFilename), Ord(SDL_True));
+    LRWOps := GetRWops(aArchive, aFilename, nil);
+
+  if not Assigned(LRWOps) then Exit;
+
+  Result := Mix_LoadMUS_RW(LRWOps, Ord(SDL_True));
 end;
 
 class function  TAudio.LoadPlayMusic(const aArchive: TArchive; const aFilename: string; const aVolume: Single; const aLoop: Integer; const aUseBuffer: Boolean=False): TMusic;
@@ -31739,15 +31749,14 @@ end;
 
 
 class function  TAudio.LoadSound(const aArchive: TArchive; const aFilename: string): TSound;
+var
+  LRWOps: PSDL_RWops;
 begin
   Result := nil;
-  if Assigned(aArchive) then
-    begin
-      if aArchive.IsOpen then
-        Result := Mix_LoadWAV_RW(aArchive.OpenFileRWops(aFilename), Ord(SDL_True))
-    end
-  else
-    Result := Mix_LoadWAV_RW(GetFileRWops(aFilename), Ord(SDL_True));
+  LRWOps := GetRWOps(aArchive, aFilename, nil);
+  if not Assigned(LRWops) then Exit;
+
+  Result := Mix_LoadWAV_RW(LRWOps, Ord(SDL_True));
 end;
 
 class procedure TAudio.UnloadSound(var aSound: TSound);
