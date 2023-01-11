@@ -1,7 +1,7 @@
 <a href="https://delphigamekit.com" target="_blank">![DelphiGamekit Logo](media/logo.png)</a>
 
 [![Chat on Discord](https://img.shields.io/discord/754884471324672040.svg?logo=discord)](https://discord.gg/tPWjMwK) [![GitHub stars](https://img.shields.io/github/stars/tinyBigGAMES/DelphiGamekit?style=social)](https://github.com/tinyBigGAMES/Topaz/stargazers) [![GitHub Watchers](https://img.shields.io/github/watchers/tinyBigGAMES/DelphiGamekit?style=social)](https://github.com/tinyBigGAMES/DelphiGamekit/network/members) [![GitHub forks](https://img.shields.io/github/forks/tinyBigGAMES/DelphiGamekit?style=social)](https://github.com/tinyBigGAMES/DelphiGamekit/network/members)
-[![Twitter Follow](https://img.shields.io/twitter/follow/tinyBigGAMES?style=social)](https://twitter.com/topazgamelib)
+[![Twitter Follow](https://img.shields.io/twitter/follow/tinyBigGAMES?style=social)](https://twitter.com/tinyBigGAMES)
 
 ## Overview
 DelphiGamekit&trade; is a professional indie game toolkit that allows you to do 2D game development in <a href="https://www.embarcadero.com/products/delphi" target="_blank"> Embarcadero Delphi®</a> for desktop PC's running Microsoft Windows® and uses Direct3D® for hardware accelerated rendering.
